@@ -58,13 +58,13 @@
             <div id="formBuilder" class="hidden" style="background: #fff8f0; padding: 15px; border-radius: 8px; border: 1px solid orange;">
                 <h3 id="builderTitle">नवीन फॉर्म तयार करा</h3>
                 <input type="hidden" id="editFormID">
-                <input type="text" id="newFormName" placeholder="फॉर्मचे नाव">
+                <input type="text" id="newFormName" placeholder="फॉर्मचे नाव (उदा. पाहणी अहवाल)">
                 <select id="newFormType">
                     <option value="List">गावनिहाय लिस्ट</option>
                     <option value="Stats">गावनिहाय आकडेवारी</option>
                 </select>
                 <div id="fieldsList"></div>
-                <button onclick="addField()" style="background:#e9ecef; color:#333;">+ फिल्ड जोडा</button>
+                <button onclick="addField()" style="background:#e9ecef; color:#333; font-weight:bold;">+ नवीन प्रश्न जोडा</button>
                 <button id="mainActionBtn" class="btn-primary" onclick="saveFullForm()">फॉर्म सेव्ह करा</button>
             </div>
         </div>
@@ -184,38 +184,41 @@
         JSON.parse(f.StructureJSON).forEach(field => addField(field));
     }
 
-    // नवीन Dropdown आणि Options ची सोय
     function addField(data = null) {
-        const id = Date.now() + Math.random();
+        // ID साठी random number वापरला आहे जेणेकरून अडचण येणार नाही
+        const id = Math.floor(Math.random() * 1000000); 
         const html = `
             <div class="field-card" id="f_${id}">
                 <button class="btn-remove" onclick="this.parentElement.remove()">X</button>
                 <div style="display:flex; gap:5px;">
-                    <input type="text" placeholder="फिल्डचे नाव (उदा. साठवण स्थिती)" class="fname" style="flex:2;" value="${data ? data.label : ''}">
-                    <input type="text" placeholder="Default" class="fdefault" style="flex:1;" value="${data ? (data.defaultVal || '') : ''}">
+                    <input type="text" placeholder="मुख्य प्रश्न (उदा. ब्लिचिंग पावडर उपलब्धता)" class="fname" style="flex:2;" value="${data ? data.label : ''}">
                 </div>
-                <select class="ftype" onchange="toggleOptionsBox('${id}', this.value)">
+                
+                <select class="ftype" onchange="toggleOptionsBox('${id}', this.value)" style="margin-top:10px; background:#f0f8ff;">
                     <option value="text" ${data && data.type==='text'?'selected':''}>Text (मजकूर)</option>
                     <option value="number" ${data && data.type==='number'?'selected':''}>Number (आकडे)</option>
                     <option value="date" ${data && data.type==='date'?'selected':''}>Date (तारीख)</option>
                     <option value="yesno" ${data && data.type==='yesno'?'selected':''}>Yes/No (हो/नाही)</option>
-                    <option value="dropdown" ${data && data.type==='dropdown'?'selected':''}>Dropdown (स्वतःचे पर्याय)</option>
+                    <option value="dropdown" ${data && data.type==='dropdown'?'selected':''}>Dropdown (अनेक पर्याय द्या)</option>
                 </select>
                 
-                <div id="opts_${id}" style="display:${data && data.type==='dropdown' ? 'block' : 'none'}; margin-top:10px; background:#eef; padding:10px; border-radius:5px;">
-                    <label style="font-size:12px;">पर्याय लिहा (स्वल्पविरामाने वेगळे करा):</label>
-                    <input type="text" placeholder="उदा. योग्य साठवण, अयोग्य साठवण" class="foptions" value="${data ? (data.options || '') : ''}">
+                <div id="opts_${id}" style="display:${data && data.type==='dropdown' ? 'block' : 'none'}; margin-top:10px; background:#ffe4b5; padding:10px; border-radius:5px;">
+                    <label style="font-size:12px; color:#d2691e;"><b>येथे तुमचे पर्याय लिहा (स्वल्पविरामाने , वेगळे करा):</b></label>
+                    <input type="text" placeholder="उदा. उपलब्ध आहे, उपलब्ध नाही" class="foptions" value="${data ? (data.options || '') : ''}">
                 </div>
 
                 <div style="margin-top:10px; border-left:3px solid var(--primary); padding-left:10px;">
-                    <input type="text" placeholder="अतिरिक्त प्रश्न / सब-फिल्ड (असल्यास)" class="sname" value="${data ? (data.subLabel || '') : ''}">
+                    <input type="text" placeholder="या प्रश्नावर आधारित काही 'अतिरिक्त प्रश्न' विचारायचा आहे का? (नसल्यास रिकामे सोडा)" class="sname" value="${data ? (data.subLabel || '') : ''}">
                 </div>
             </div>`;
         document.getElementById('fieldsList').insertAdjacentHTML('beforeend', html);
     }
 
     function toggleOptionsBox(id, val) {
-        document.getElementById('opts_' + id).style.display = (val === 'dropdown') ? 'block' : 'none';
+        const box = document.getElementById('opts_' + id);
+        if(box) {
+            box.style.display = (val === 'dropdown') ? 'block' : 'none';
+        }
     }
 
     function getFieldsData() {
@@ -223,7 +226,6 @@
         document.querySelectorAll('.field-card').forEach(el => {
             fields.push({
                 label: el.querySelector('.fname').value,
-                defaultVal: el.querySelector('.fdefault').value || "",
                 type: el.querySelector('.ftype').value,
                 options: el.querySelector('.foptions') ? el.querySelector('.foptions').value : "",
                 subLabel: el.querySelector('.sname').value || null
@@ -281,29 +283,29 @@
         area.innerHTML = "";
         const f = masterData.forms.find(x => x.FormID === fId);
         if(!f) return;
+        
         JSON.parse(f.StructureJSON).forEach((field, i) => {
-            let def = field.defaultVal || "";
-            let html = `<div style="margin-bottom:15px;"><label><b>${field.label}:</b></label>`;
+            let html = `<div style="margin-bottom:15px; background:white; padding:10px; border-radius:8px; border:1px solid #ddd;"><label><b>${field.label}:</b></label>`;
             
-            // Dropdown रेंडरिंग
             if(field.type === 'dropdown') {
                 html += `<select id="inp_${i}" onchange="toggleSub(${i})"><option value="">-- निवडा --</option>`;
                 if(field.options) {
                     field.options.split(',').forEach(opt => {
                         let o = opt.trim();
-                        html += `<option value="${o}" ${def===o ? 'selected':''}>${o}</option>`;
+                        if(o) html += `<option value="${o}">${o}</option>`;
                     });
                 }
                 html += `</select>`;
             } 
             else if(field.type === 'yesno') {
-                html += `<select id="inp_${i}" onchange="toggleSub(${i})"><option value="No">No</option><option value="Yes" ${def.toLowerCase()==='yes'?'selected':''}>Yes</option></select>`;
-            } else {
-                html += `<input type="${field.type}" id="inp_${i}" value="${def}">`;
+                html += `<select id="inp_${i}" onchange="toggleSub(${i})"><option value="">-- निवडा --</option><option value="No">नाही</option><option value="Yes">होय</option></select>`;
+            } 
+            else {
+                html += `<input type="${field.type}" id="inp_${i}">`;
             }
 
             if(field.subLabel) {
-                html += `<div id="sdiv_${i}" style="display:none; margin-top:10px; margin-left:20px; border-left:2px solid orange; padding-left:10px;"><label>${field.subLabel}:</label><input type="text" id="sinp_${i}"></div>`;
+                html += `<div id="sdiv_${i}" style="display:none; margin-top:10px; margin-left:15px; border-left:3px solid orange; padding-left:10px;"><label>${field.subLabel}:</label><input type="text" id="sinp_${i}"></div>`;
             }
             area.innerHTML += html + `</div>`;
         });
@@ -313,7 +315,7 @@
         const div = document.getElementById('sdiv_'+i);
         if(!div) return;
         const val = document.getElementById('inp_'+i).value;
-        // जर कोणतीही व्हॅल्यू सिलेक्ट केली असेल आणि ती 'No' नसेल, तरच सब-फिल्ड दिसेल
+        // कोणतीही व्हॅल्यू सिलेक्ट केली की अतिरिक्त प्रश्न दिसेल
         div.style.display = (val !== '' && val !== 'No') ? 'block' : 'none';
     }
 
@@ -321,30 +323,39 @@
         const fId = document.getElementById('selForm').value;
         const vName = document.getElementById('selVillage').value;
         if(!fId || !vName) { alert("फॉर्म आणि गाव निवडा"); return; }
+        
         let formData = {};
         const f = masterData.forms.find(x => x.FormID === fId);
         JSON.parse(f.StructureJSON).forEach((field, i) => {
-            formData[field.label] = document.getElementById('inp_'+i).value;
-            if(field.subLabel && document.getElementById('sinp_'+i)) formData[field.subLabel] = document.getElementById('sinp_'+i).value;
+            const mainVal = document.getElementById('inp_'+i).value;
+            formData[field.label] = mainVal;
+            
+            // जर अतिरिक्त प्रश्न असेल आणि तो भरला असेल
+            if(field.subLabel && document.getElementById('sinp_'+i) && mainVal !== '' && mainVal !== 'No') {
+                formData[field.subLabel] = document.getElementById('sinp_'+i).value;
+            }
         });
+        
         const entry = { entryID: Date.now(), mobileNo: user.mobile, subCenter: user.subcenter, village: vName, formID: fId, formData: formData };
         let q = JSON.parse(localStorage.getItem("syncQueue") || "[]");
         q.push(entry);
         localStorage.setItem("syncQueue", JSON.stringify(q));
-        alert("माहिती सेव्ह झाली!");
-        document.getElementById('dynamicFormArea').innerHTML = ""; // फॉर्म रिसेट करा
+        alert("माहिती मोबाईलमध्ये सुरक्षित सेव्ह झाली!");
+        document.getElementById('dynamicFormArea').innerHTML = ""; 
+        document.getElementById('selVillage').value = "";
     }
 
     async function syncDataToServer() {
         let q = JSON.parse(localStorage.getItem("syncQueue") || "[]");
-        if(q.length === 0) { alert("डेटा नाही"); return; }
-        document.getElementById('syncStatus').innerText = "सिंक होत आहे...";
+        if(q.length === 0) { alert("सर्व्हरवर पाठवण्यासाठी नवीन डेटा नाही."); return; }
+        document.getElementById('syncStatus').innerText = "डेटा सर्व्हरवर पाठवत आहे...";
         try {
             const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"syncData", payload: q}) });
             const d = await r.json();
-            if(d.success) { localStorage.setItem("syncQueue", "[]"); alert("यशस्वी!"); document.getElementById('syncStatus').innerText = ""; }
-        } catch(e) { alert("एरर"); }
+            if(d.success) { localStorage.setItem("syncQueue", "[]"); alert("सर्व माहिती ऑनलाइन अपडेट झाली!"); document.getElementById('syncStatus').innerText = ""; }
+        } catch(e) { alert("एरर आला. इंटरनेट चालू असल्याची खात्री करा."); }
     }
 </script>
 </body>
-</html>
+                    </html>
+    
