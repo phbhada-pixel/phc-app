@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PHC Advance Management</title>
+    <title>PHC Advance Management - Admin Edit Mode</title>
     <style>
         :root { --primary: #00705a; --secondary: #0056b3; --bg: #f4f7f6; }
         body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; padding: 0; font-size: 16px; }
         .container { max-width: 600px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        h2, h3 { text-align: center; color: #333; }
+        h2, h3, h4 { text-align: center; color: #333; margin-top: 5px; }
         input, select, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; }
         .btn-primary { background: var(--primary); color: white; font-weight: bold; border: none; cursor: pointer; }
         .btn-admin { background: #6c757d; color: white; border: none; cursor: pointer; }
@@ -16,7 +16,9 @@
         .hidden { display: none !important; }
         .status-bar { padding: 10px; text-align: center; font-weight: bold; border-radius: 5px; margin-bottom: 15px; }
         .online { background: #d4edda; color: #155724; }
-        .offline { background: #fff3cd; color: #856404; }
+        .edit-row { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 5px; }
+        .btn-edit { background: orange; color: white; border: none; width: auto; padding: 5px 15px; border-radius: 4px; }
+        .btn-remove { background: #ff4d4d; color: white; padding: 4px; font-size: 12px; border: none; width: auto; float: right; }
     </style>
 </head>
 <body>
@@ -41,20 +43,27 @@
 
         <div id="adminPanel" class="hidden">
             <div style="display:flex; gap:10px;">
-                <button class="btn-admin" onclick="showSection('formBuilder')">➕ नवीन फॉर्म तयार करा</button>
-                <button class="btn-primary" onclick="showSection('entryScreen')">⬅️ डेटा एंट्रीकडे जा</button>
+                <button class="btn-admin" onclick="openNewFormBuilder()">➕ नवीन फॉर्म</button>
+                <button class="btn-primary" onclick="showSection('entryScreen')">⬅️ डेटा एंट्री</button>
             </div>
+            
+            <div id="existingFormsArea">
+                <h4>अस्तित्वात असलेले फॉर्म (Edit करा)</h4>
+                <div id="formsEditList"></div>
+            </div>
+
             <hr>
-            <div id="formBuilder" class="hidden">
-                <h3>Form Builder</h3>
-                <input type="text" id="newFormName" placeholder="फॉर्मचे नाव">
+            
+            <div id="formBuilder" class="hidden" style="background: #fff8f0; padding: 15px; border-radius: 8px; border: 1px solid orange;">
+                <h3 id="builderTitle">नवीन फॉर्म तयार करा</h3>
+                <input type="hidden" id="editFormID"> <input type="text" id="newFormName" placeholder="फॉर्मचे नाव">
                 <select id="newFormType">
                     <option value="List">गावनिहाय लिस्ट</option>
                     <option value="Stats">गावनिहाय आकडेवारी</option>
                 </select>
                 <div id="fieldsList"></div>
                 <button onclick="addField()" style="background:#e9ecef; color:#333;">+ फिल्ड जोडा</button>
-                <button class="btn-primary" onclick="saveFullForm()">फॉर्म सेव्ह करा</button>
+                <button id="mainActionBtn" class="btn-primary" onclick="saveFullForm()">फॉर्म सेव्ह करा</button>
             </div>
         </div>
 
@@ -64,15 +73,11 @@
             <div id="adminBtnDiv" class="hidden">
                 <button class="btn-admin" onclick="showSection('adminPanel')">⚙️ Admin Settings</button>
             </div>
-            
             <label>फॉर्म निवडा:</label>
             <select id="selForm" onchange="loadDynamicFields()"></select>
-            
             <label>गाव निवडा:</label>
             <select id="selVillage"></select>
-
             <div id="dynamicFormArea"></div>
-            
             <button class="btn-primary" onclick="saveDataLocal()">माहिती जतन करा</button>
             <button onclick="syncDataToServer()" style="background:#28a745; color:white;">Cloud Sync</button>
             <p id="syncStatus" style="text-align:center; font-size:14px;"></p>
@@ -96,45 +101,117 @@
         try {
             const r = await fetch(GAS_URL + "?action=getInitialData");
             const d = await r.json();
-            if(d.success) { masterData = d; updateFormDropdown(); }
+            if(d.success) { 
+                masterData = d; 
+                updateFormDropdown();
+                renderFormsListForEdit();
+            }
         } catch(e) { console.error("Fetch failed"); }
     }
 
-    function updateFormDropdown() {
-        const sel = document.getElementById('selForm');
-        sel.innerHTML = '<option value="">-- निवडा --</option>';
+    function renderFormsListForEdit() {
+        const listDiv = document.getElementById('formsEditList');
+        listDiv.innerHTML = "";
         masterData.forms.forEach(f => {
-            sel.innerHTML += `<option value="${f.FormID}">${f.FormName}</option>`;
+            listDiv.innerHTML += `
+                <div class="edit-row">
+                    <span><b>${f.FormName}</b></span>
+                    <button class="btn-edit" onclick="startEditing('${f.FormID}')">Edit</button>
+                </div>`;
         });
     }
 
+    // १. नवीन फॉर्म बिल्डर उघडणे
+    function openNewFormBuilder() {
+        showSection('formBuilder');
+        document.getElementById('builderTitle').innerText = "नवीन फॉर्म तयार करा";
+        document.getElementById('editFormID').value = "";
+        document.getElementById('newFormName').value = "";
+        document.getElementById('fieldsList').innerHTML = "";
+        document.getElementById('mainActionBtn').innerText = "फॉर्म सेव्ह करा";
+        document.getElementById('mainActionBtn').onclick = saveFullForm;
+    }
+
+    // २. जुना फॉर्म एडिट मोडमध्ये उघडणे
+    function startEditing(fId) {
+        const f = masterData.forms.find(x => x.FormID === fId);
+        if(!f) return;
+
+        showSection('formBuilder');
+        document.getElementById('builderTitle').innerText = "फॉर्म एडिट: " + f.FormName;
+        document.getElementById('editFormID').value = f.FormID;
+        document.getElementById('newFormName').value = f.FormName;
+        document.getElementById('newFormType').value = f.FormType;
+        document.getElementById('fieldsList').innerHTML = "";
+        document.getElementById('mainActionBtn').innerText = "बदल अपडेट करा (Update)";
+        document.getElementById('mainActionBtn').onclick = updateExistingForm;
+
+        const struct = JSON.parse(f.StructureJSON);
+        struct.forEach(field => addField(field));
+    }
+
+    // ३. फिल्ड ॲड करणे (रिकामी किंवा डेटासह)
+    function addField(data = null) {
+        const id = Date.now() + Math.random();
+        const html = `
+            <div class="field-card" id="f_${id}">
+                <button class="btn-remove" onclick="this.parentElement.remove()">X</button>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" placeholder="फिल्डचे नाव" class="fname" style="flex:2;" value="${data ? data.label : ''}">
+                    <input type="text" placeholder="Default" class="fdefault" style="flex:1;" value="${data ? (data.defaultVal || '') : ''}">
+                </div>
+                <select class="ftype">
+                    <option value="text" ${data && data.type==='text'?'selected':''}>Text</option>
+                    <option value="number" ${data && data.type==='number'?'selected':''}>Number</option>
+                    <option value="date" ${data && data.type==='date'?'selected':''}>Date</option>
+                    <option value="yesno" ${data && data.type==='yesno'?'selected':''}>Yes/No</option>
+                </select>
+                <input type="text" placeholder="सब-फिल्ड (असल्यास)" class="sname" value="${data ? (data.subLabel || '') : ''}">
+            </div>`;
+        document.getElementById('fieldsList').insertAdjacentHTML('beforeend', html);
+    }
+
+    // ४. अपडेट ॲक्शन (Google Script ला पाठवणे)
+    async function updateExistingForm() {
+        const formID = document.getElementById('editFormID').value;
+        const name = document.getElementById('newFormName').value;
+        const type = document.getElementById('newFormType').value;
+        
+        const fieldElements = document.querySelectorAll('.field-card');
+        let fields = [];
+        fieldElements.forEach(el => {
+            fields.push({
+                label: el.querySelector('.fname').value,
+                defaultVal: el.querySelector('.fdefault').value || "",
+                type: el.querySelector('.ftype').value,
+                subLabel: el.querySelector('.sname').value || null
+            });
+        });
+
+        const payload = { formID, name, type, fields };
+        const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"updateForm", payload}) });
+        const d = await r.json();
+        if(d.success) { alert(d.message); location.reload(); }
+    }
+
+    // --- आधीचे इतर फंक्शन्स (लॉगिन, डेटा एंट्री इ.) ---
     async function handleLogin() {
         const m = document.getElementById('mob').value.trim();
         const p = document.getElementById('pwd').value.trim();
-        if(!m || !p) { alert("नंबर आणि पासवर्ड टाका"); return; }
-        try {
-            const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"login", mobileNo:m, password:p}) });
-            const d = await r.json();
-            if(d.success) {
-                user = d.user; user.mobile = m;
-                document.getElementById('loginBox').classList.add('hidden');
-                document.getElementById('entryScreen').classList.remove('hidden');
-                document.getElementById('uName').innerText = user.name;
-                document.getElementById('uSub').innerText = "उपकेंद्र: " + user.subcenter;
-                if(user.role === "Admin") document.getElementById('adminBtnDiv').classList.remove('hidden');
-                loadVillages();
-            } else { alert(d.message); }
-        } catch(e) { alert("लॉगिन अयशस्वी. इंटरनेट तपासा."); }
-    }
-
-    function loadVillages() {
-        const vSel = document.getElementById('selVillage');
-        vSel.innerHTML = '<option value="">-- गाव निवडा --</option>';
-        // Case-insensitive filtering for "Bhada"
-        masterData.villages.filter(v => 
-            v.SubCenterID.toLowerCase() === user.subcenter.toLowerCase() || 
-            v.SubCenterID.toLowerCase() === "all"
-        ).forEach(v => vSel.innerHTML += `<option value="${v.VillageName}">${v.VillageName}</option>`);
+        const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"login", mobileNo:m, password:p}) });
+        const d = await r.json();
+        if(d.success) {
+            user = d.user; user.mobile = m;
+            document.getElementById('loginBox').classList.add('hidden');
+            document.getElementById('entryScreen').classList.remove('hidden');
+            document.getElementById('uName').innerText = user.name;
+            document.getElementById('uSub').innerText = "उपकेंद्र: " + user.subcenter;
+            if(user.role === "Admin") {
+                document.getElementById('adminBtnDiv').classList.remove('hidden');
+                renderFormsListForEdit();
+            }
+            loadVillages();
+        } else { alert(d.message); }
     }
 
     function showSection(id) {
@@ -149,44 +226,32 @@
         }
     }
 
-    function addField() {
-        const id = Date.now();
-        const html = `
-            <div class="field-card" id="f_${id}">
-                <div style="display:flex; gap:5px;">
-                    <input type="text" placeholder="फिल्डचे नाव" class="fname" style="flex:2;">
-                    <input type="text" placeholder="Default व्हॅल्यू" class="fdefault" style="flex:1;">
-                </div>
-                <select class="ftype">
-                    <option value="text">Text (मजकूर)</option>
-                    <option value="number">Number (आकडे)</option>
-                    <option value="date">Date (तारीख)</option>
-                    <option value="yesno">Yes/No (हो/नाही)</option>
-                </select>
-                <div style="margin-top:10px; background:#eef; padding:10px; border-radius:5px;">
-                    <label style="font-size:12px;">सब-फिल्ड हवी असल्यास नाव लिहा:</label>
-                    <input type="text" placeholder="सब-फिल्डचे नाव" class="sname">
-                </div>
-            </div>`;
-        document.getElementById('fieldsList').insertAdjacentHTML('beforeend', html);
+    function updateFormDropdown() {
+        const sel = document.getElementById('selForm');
+        sel.innerHTML = '<option value="">-- निवडा --</option>';
+        masterData.forms.forEach(f => sel.innerHTML += `<option value="${f.FormID}">${f.FormName}</option>`);
+    }
+
+    function loadVillages() {
+        const vSel = document.getElementById('selVillage');
+        vSel.innerHTML = '<option value="">-- गाव निवडा --</option>';
+        masterData.villages.filter(v => 
+            v.SubCenterID.toLowerCase() === user.subcenter.toLowerCase() || 
+            v.SubCenterID.toLowerCase() === "all"
+        ).forEach(v => vSel.innerHTML += `<option value="${v.VillageName}">${v.VillageName}</option>`);
     }
 
     async function saveFullForm() {
         const name = document.getElementById('newFormName').value;
         const type = document.getElementById('newFormType').value;
-        if(!name) { alert("फॉर्मचे नाव टाका"); return; }
-        
         const fieldElements = document.querySelectorAll('.field-card');
         let fields = [];
-        fieldElements.forEach(el => {
-            fields.push({
-                label: el.querySelector('.fname').value,
-                defaultVal: el.querySelector('.fdefault').value || "",
-                type: el.querySelector('.ftype').value,
-                subLabel: el.querySelector('.sname').value || null
-            });
-        });
-
+        fieldElements.forEach(el => fields.push({
+            label: el.querySelector('.fname').value,
+            defaultVal: el.querySelector('.fdefault').value || "",
+            type: el.querySelector('.ftype').value,
+            subLabel: el.querySelector('.sname').value || null
+        }));
         const payload = { name, type, fields, adminMobile: user.mobile };
         const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"createForm", payload}) });
         const d = await r.json();
@@ -201,36 +266,23 @@
         if(!f) return;
         const struct = JSON.parse(f.StructureJSON);
         struct.forEach((field, i) => {
-            let inputHtml = "";
-            let defValue = field.defaultVal || "";
-
+            let def = field.defaultVal || "";
+            let html = `<div style="margin-bottom:15px;"><label><b>${field.label}:</b></label>`;
             if(field.type === 'yesno') {
-                inputHtml = `<select id="inp_${i}" onchange="toggleSubDisplay(${i})">
-                    <option value="No">No</option>
-                    <option value="Yes" ${defValue.toLowerCase() === 'yes' ? 'selected' : ''}>Yes</option>
-                </select>`;
+                html += `<select id="inp_${i}" onchange="toggleSub(${i})"><option value="No">No</option><option value="Yes" ${def.toLowerCase()==='yes'?'selected':''}>Yes</option></select>`;
             } else {
-                inputHtml = `<input type="${field.type}" id="inp_${i}" value="${defValue}">`;
+                html += `<input type="${field.type}" id="inp_${i}" value="${def}">`;
             }
-
-            let subHtml = "";
             if(field.subLabel) {
-                subHtml = `<div id="subdiv_${i}" style="display:none; margin-left:20px; border-left:2px solid orange; padding-left:10px;">
-                    <label style="color:orange;">${field.subLabel}:</label>
-                    <input type="text" id="subinp_${i}">
-                </div>`;
+                html += `<div id="sdiv_${i}" style="display:none; margin-left:20px; border-left:2px solid orange; padding-left:10px;"><label>${field.subLabel}:</label><input type="text" id="sinp_${i}"></div>`;
             }
-
-            area.innerHTML += `<div style="margin-bottom:15px;"><label><b>${field.label}:</b></label>${inputHtml}${subHtml}</div>`;
+            area.innerHTML += html + `</div>`;
         });
     }
 
-    function toggleSubDisplay(i) {
-        const subDiv = document.getElementById('subdiv_'+i);
-        if(subDiv) {
-            const val = document.getElementById('inp_'+i).value;
-            subDiv.style.display = (val === 'Yes') ? 'block' : 'none';
-        }
+    function toggleSub(i) {
+        const div = document.getElementById('sdiv_'+i);
+        if(div) div.style.display = (document.getElementById('inp_'+i).value === 'Yes') ? 'block' : 'none';
     }
 
     function saveDataLocal() {
@@ -239,33 +291,26 @@
         if(!fId || !vName) { alert("फॉर्म आणि गाव निवडा"); return; }
         let formData = {};
         const f = masterData.forms.find(x => x.FormID === fId);
-        const struct = JSON.parse(f.StructureJSON);
-        struct.forEach((field, i) => {
+        JSON.parse(f.StructureJSON).forEach((field, i) => {
             formData[field.label] = document.getElementById('inp_'+i).value;
-            if(field.subLabel && document.getElementById('subinp_'+i)) {
-                formData[field.subLabel] = document.getElementById('subinp_'+i).value;
-            }
+            if(field.subLabel && document.getElementById('sinp_'+i)) formData[field.subLabel] = document.getElementById('sinp_'+i).value;
         });
         const entry = { entryID: Date.now(), mobileNo: user.mobile, subCenter: user.subcenter, village: vName, formID: fId, formData: formData };
-        let queue = JSON.parse(localStorage.getItem("syncQueue") || "[]");
-        queue.push(entry);
-        localStorage.setItem("syncQueue", JSON.stringify(queue));
-        alert("माहिती स्थानिकरित्या साठवली!");
+        let q = JSON.parse(localStorage.getItem("syncQueue") || "[]");
+        q.push(entry);
+        localStorage.setItem("syncQueue", JSON.stringify(q));
+        alert("माहिती सेव्ह झाली!");
     }
 
     async function syncDataToServer() {
-        let queue = JSON.parse(localStorage.getItem("syncQueue") || "[]");
-        if(queue.length === 0) { alert("सिंक करण्यासाठी डेटा नाही"); return; }
-        document.getElementById('syncStatus').innerText = "सिंक होत आहे...";
+        let q = JSON.parse(localStorage.getItem("syncQueue") || "[]");
+        if(q.length === 0) { alert("डेटा नाही"); return; }
+        document.getElementById('syncStatus').innerText = "सिंक...";
         try {
-            const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"syncData", payload: queue}) });
+            const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"syncData", payload: q}) });
             const d = await r.json();
-            if(d.success) {
-                localStorage.setItem("syncQueue", "[]");
-                alert("Cloud Sync यशस्वी!");
-                document.getElementById('syncStatus').innerText = "";
-            }
-        } catch(e) { alert("सिंक एरर"); }
+            if(d.success) { localStorage.setItem("syncQueue", "[]"); alert("यशस्वी!"); document.getElementById('syncStatus').innerText = ""; }
+        } catch(e) { alert("एरर"); }
     }
 </script>
 </body>
