@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PHC Advance Management - Admin Edit Mode</title>
+    <title>PHC Advance Management</title>
     <style>
         :root { --primary: #00705a; --secondary: #0056b3; --bg: #f4f7f6; }
         body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; padding: 0; font-size: 16px; }
@@ -16,9 +16,12 @@
         .hidden { display: none !important; }
         .status-bar { padding: 10px; text-align: center; font-weight: bold; border-radius: 5px; margin-bottom: 15px; }
         .online { background: #d4edda; color: #155724; }
+        .offline { background: #fff3cd; color: #856404; }
         .edit-row { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 5px; }
         .btn-edit { background: orange; color: white; border: none; width: auto; padding: 5px 15px; border-radius: 4px; }
         .btn-remove { background: #ff4d4d; color: white; padding: 4px; font-size: 12px; border: none; width: auto; float: right; }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .btn-logout { background: #dc3545; color: white; padding: 6px 12px; font-size: 14px; border: none; border-radius: 4px; cursor: pointer; width: auto; }
     </style>
 </head>
 <body>
@@ -56,7 +59,8 @@
             
             <div id="formBuilder" class="hidden" style="background: #fff8f0; padding: 15px; border-radius: 8px; border: 1px solid orange;">
                 <h3 id="builderTitle">नवीन फॉर्म तयार करा</h3>
-                <input type="hidden" id="editFormID"> <input type="text" id="newFormName" placeholder="फॉर्मचे नाव">
+                <input type="hidden" id="editFormID">
+                <input type="text" id="newFormName" placeholder="फॉर्मचे नाव">
                 <select id="newFormType">
                     <option value="List">गावनिहाय लिस्ट</option>
                     <option value="Stats">गावनिहाय आकडेवारी</option>
@@ -68,16 +72,24 @@
         </div>
 
         <div id="entryScreen" class="hidden">
-            <h3>स्वागत आहे, <span id="uName"></span></h3>
-            <p id="uSub" style="text-align:center; color:gray;"></p>
+            <div class="header-bar">
+                <h3 style="margin: 0;">स्वागत आहे, <span id="uName"></span></h3>
+                <button class="btn-logout" onclick="logoutUser()">Log Out</button>
+            </div>
+            <p id="uSub" style="text-align:center; color:gray; margin-top: 5px;"></p>
+            
             <div id="adminBtnDiv" class="hidden">
                 <button class="btn-admin" onclick="showSection('adminPanel')">⚙️ Admin Settings</button>
             </div>
+            
             <label>फॉर्म निवडा:</label>
             <select id="selForm" onchange="loadDynamicFields()"></select>
+            
             <label>गाव निवडा:</label>
             <select id="selVillage"></select>
+
             <div id="dynamicFormArea"></div>
+            
             <button class="btn-primary" onclick="saveDataLocal()">माहिती जतन करा</button>
             <button onclick="syncDataToServer()" style="background:#28a745; color:white;">Cloud Sync</button>
             <p id="syncStatus" style="text-align:center; font-size:14px;"></p>
@@ -89,11 +101,25 @@
     let masterData = { forms: [], villages: [] };
     let user = null;
 
-    function unlockApp() {
+    // १. ॲप उघडतानाची प्रक्रिया (Auto-Login Check सह)
+    async function unlockApp() {
         if(document.getElementById('sitePass').value === "1234") {
             document.getElementById('lockScreen').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden');
-            fetchData();
+            document.getElementById('netStatus').innerText = "डेटा लोड होत आहे, कृपया थांबा...";
+            
+            await fetchData(); // गुगल शीटवरून डेटा येईपर्यंत थांबेल
+            
+            document.getElementById('netStatus').innerText = "Online";
+
+            // मेमरीमध्ये आधीच लॉगिन केलेले युजर आहे का ते तपासणे
+            const savedUser = localStorage.getItem("phc_user_session");
+            if(savedUser) {
+                user = JSON.parse(savedUser);
+                showAppAfterLogin(); // थेट ॲपमध्ये प्रवेश
+            }
+        } else {
+            alert("चुकीचा पासवर्ड!");
         }
     }
 
@@ -109,6 +135,57 @@
         } catch(e) { console.error("Fetch failed"); }
     }
 
+    // २. नवीन लॉगिन प्रक्रिया
+    async function handleLogin() {
+        const m = document.getElementById('mob').value.trim();
+        const p = document.getElementById('pwd').value.trim();
+        if(!m || !p) { alert("नंबर आणि पासवर्ड टाका"); return; }
+        
+        document.getElementById('netStatus').innerText = "तपासत आहे...";
+        try {
+            const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"login", mobileNo:m, password:p}) });
+            const d = await r.json();
+            if(d.success) {
+                user = d.user; 
+                user.mobile = m;
+                
+                // यशस्वी लॉगिन झाल्यावर युजरची माहिती कायमस्वरूपी (Local Storage) सेव्ह करा
+                localStorage.setItem("phc_user_session", JSON.stringify(user));
+                
+                showAppAfterLogin();
+            } else { 
+                alert(d.message); 
+            }
+            document.getElementById('netStatus').innerText = "Online";
+        } catch(e) { 
+            alert("लॉगिन अयशस्वी. इंटरनेट तपासा."); 
+            document.getElementById('netStatus').innerText = "Offline";
+        }
+    }
+
+    // ३. लॉगिन झाल्यानंतरचे UI (पुनरावृत्ती टाळण्यासाठी एकच फंक्शन)
+    function showAppAfterLogin() {
+        document.getElementById('loginBox').classList.add('hidden');
+        document.getElementById('entryScreen').classList.remove('hidden');
+        document.getElementById('uName').innerText = user.name;
+        document.getElementById('uSub').innerText = "उपकेंद्र: " + user.subcenter;
+        
+        if(user.role === "Admin") {
+            document.getElementById('adminBtnDiv').classList.remove('hidden');
+            renderFormsListForEdit();
+        }
+        loadVillages();
+    }
+
+    // ४. लॉग आऊट करण्याची प्रक्रिया
+    function logoutUser() {
+        if(confirm("तुम्हाला नक्की लॉग आऊट करायचे आहे का?")) {
+            localStorage.removeItem("phc_user_session"); // मेमरी क्लिअर करा
+            location.reload(); // पेज रिफ्रेश करा म्हणजे पुन्हा लॉगिन स्क्रीन येईल
+        }
+    }
+
+    // --- खालील सर्व फंक्शन्स आधीप्रमाणेच आहेत ---
     function renderFormsListForEdit() {
         const listDiv = document.getElementById('formsEditList');
         listDiv.innerHTML = "";
@@ -121,7 +198,6 @@
         });
     }
 
-    // १. नवीन फॉर्म बिल्डर उघडणे
     function openNewFormBuilder() {
         showSection('formBuilder');
         document.getElementById('builderTitle').innerText = "नवीन फॉर्म तयार करा";
@@ -132,7 +208,6 @@
         document.getElementById('mainActionBtn').onclick = saveFullForm;
     }
 
-    // २. जुना फॉर्म एडिट मोडमध्ये उघडणे
     function startEditing(fId) {
         const f = masterData.forms.find(x => x.FormID === fId);
         if(!f) return;
@@ -150,7 +225,6 @@
         struct.forEach(field => addField(field));
     }
 
-    // ३. फिल्ड ॲड करणे (रिकामी किंवा डेटासह)
     function addField(data = null) {
         const id = Date.now() + Math.random();
         const html = `
@@ -171,7 +245,6 @@
         document.getElementById('fieldsList').insertAdjacentHTML('beforeend', html);
     }
 
-    // ४. अपडेट ॲक्शन (Google Script ला पाठवणे)
     async function updateExistingForm() {
         const formID = document.getElementById('editFormID').value;
         const name = document.getElementById('newFormName').value;
@@ -192,26 +265,6 @@
         const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"updateForm", payload}) });
         const d = await r.json();
         if(d.success) { alert(d.message); location.reload(); }
-    }
-
-    // --- आधीचे इतर फंक्शन्स (लॉगिन, डेटा एंट्री इ.) ---
-    async function handleLogin() {
-        const m = document.getElementById('mob').value.trim();
-        const p = document.getElementById('pwd').value.trim();
-        const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"login", mobileNo:m, password:p}) });
-        const d = await r.json();
-        if(d.success) {
-            user = d.user; user.mobile = m;
-            document.getElementById('loginBox').classList.add('hidden');
-            document.getElementById('entryScreen').classList.remove('hidden');
-            document.getElementById('uName').innerText = user.name;
-            document.getElementById('uSub').innerText = "उपकेंद्र: " + user.subcenter;
-            if(user.role === "Admin") {
-                document.getElementById('adminBtnDiv').classList.remove('hidden');
-                renderFormsListForEdit();
-            }
-            loadVillages();
-        } else { alert(d.message); }
     }
 
     function showSection(id) {
@@ -305,7 +358,7 @@
     async function syncDataToServer() {
         let q = JSON.parse(localStorage.getItem("syncQueue") || "[]");
         if(q.length === 0) { alert("डेटा नाही"); return; }
-        document.getElementById('syncStatus').innerText = "सिंक...";
+        document.getElementById('syncStatus').innerText = "सिंक होत आहे...";
         try {
             const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"syncData", payload: q}) });
             const d = await r.json();
