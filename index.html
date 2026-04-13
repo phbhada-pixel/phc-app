@@ -3,204 +3,229 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>आरोग्य केंद्र डेटा संकलन</title>
+    <title>PHC डेटा मॅनेजमेंट</title>
     <link rel="manifest" href="manifest.json">
     <style>
-        /* मुख्य ॲपचे डिझाईन */
         body { font-family: sans-serif; background-color: #f4f4f9; padding: 0; margin: 0; font-size: 18px; }
         .container { max-width: 500px; margin: 20px auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         input, select, button { width: 100%; padding: 15px; margin: 10px 0; font-size: 18px; border-radius: 5px; border: 2px solid #ccc; box-sizing: border-box; }
-        .primary-btn { background-color: #0056b3; color: white; font-weight: bold; cursor: pointer; border: none; }
-        .sync-btn { background-color: #28a745; color: white; font-weight: bold; cursor: pointer; border: none; margin-top: 20px;}
+        .primary-btn { background-color: #0056b3; color: white; font-weight: bold; border: none; cursor: pointer; }
+        .sync-btn { background-color: #28a745; color: white; font-weight: bold; border: none; margin-top: 20px; }
         .status { padding: 10px; text-align: center; font-weight: bold; border-radius: 5px; margin-bottom: 20px; }
         .online { background-color: #d4edda; color: #155724; }
         .offline { background-color: #fff3cd; color: #856404; }
         .hidden { display: none !important; }
-        h2, h3 { color: #333; text-align: center; }
+        h2, h3 { color: #333; text-align: center; margin-bottom: 10px; }
+        label { font-weight: bold; display: block; margin-top: 10px; }
 
-        /* पासवर्ड स्क्रीन डिझाईन */
-        #passwordScreenOverlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
-            background-color: #0f1c24; display: flex; justify-content: center; align-items: center;
-            z-index: 1000;
-        }
-        .password-card {
-            background-color: #ffffff; border-radius: 8px; padding: 40px;
-            width: 90%; max-width: 400px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); box-sizing: border-box;
-        }
-        .password-card h2 { margin: 0 0 12px 0; font-size: 24px; color: #111820; text-align: left; }
-        .password-card p { margin: 0 0 24px 0; font-size: 16px; color: #111820; text-align: left;}
-        
-        /* नवीन एरर मेसेज बॉक्स (फोटोसारखा) */
-        .error-banner {
-            background-color: #fff0f0; 
-            color: #d32f2f; 
-            padding: 12px; 
-            border-radius: 4px; 
-            font-size: 14px; 
-            margin-bottom: 15px; 
-            text-align: left;
-        }
-
-        .password-card input { border: 2px solid #f2a900; outline: none; margin-top: 0;}
-        .password-card button { background-color: #00705a; color: white; font-weight: bold; border: none; }
+        /* Password Screen (Global) */
+        #passwordScreenOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background-color: #0f1c24; display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .password-card { background-color: #ffffff; border-radius: 8px; padding: 40px; width: 90%; max-width: 400px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
+        .error-banner { background-color: #fff0f0; color: #d32f2f; padding: 12px; border-radius: 4px; font-size: 14px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
     <div id="passwordScreenOverlay">
         <div class="password-card">
-            <h2>Password protected site</h2>
-            <p>Please enter your password to get access.</p>
-            
-            <div id="passError" class="error-banner hidden">Wrong password, please try again.</div>
-            
-            <input type="password" id="sitePassword" placeholder="Password">
-            <button onclick="checkPassword()">Submit</button>
+            <h2>Password protected</h2>
+            <p>Please enter site password.</p>
+            <div id="sitePassError" class="error-banner hidden">चुकीचा पासवर्ड!</div>
+            <input type="password" id="sitePassword" placeholder="Password (1234)">
+            <button class="primary-btn" onclick="checkSitePassword()" style="background-color: #00705a;">Submit</button>
         </div>
     </div>
 
     <div class="container hidden" id="mainAppContainer">
-        <div id="statusIndicator" class="status online">इंटरनेट सुरू आहे (Online)</div>
+        <div id="statusIndicator" class="status online">Online</div>
 
         <div id="loginScreen">
-            <h2>आरोग्य कर्मचारी लॉगिन</h2>
-            <input type="tel" id="mobileInput" placeholder="मोबाईल नंबर टाका">
-            <button class="primary-btn" onclick="loginUser()">लॉगिन करा</button>
-            <p id="loginMessage" style="color:red; text-align:center;"></p>
+            <h2>कर्मचारी लॉगिन</h2>
+            <input type="tel" id="userMobile" placeholder="मोबाईल नंबर">
+            <input type="password" id="userPass" placeholder="तुमचा वैयक्तिक पासवर्ड">
+            <button class="primary-btn" onclick="processLogin()">लॉगिन करा</button>
+            <p id="loginMsg" style="color:red; text-align:center;"></p>
         </div>
 
         <div id="appScreen" class="hidden">
-            <h3>माहिती भरा</h3>
-            <p><b>कर्मचारी:</b> <span id="userNameDisplay"></span></p>
+            <h3>स्वागत आहे, <span id="displayUserName"></span></h3>
+            <p style="text-align:center; font-size: 14px; color: #666;">उपकेंद्र: <span id="displaySubCenter"></span></p>
+            <hr>
             
+            <label>फॉर्म निवडा:</label>
+            <select id="formSelect" onchange="renderDynamicForm()">
+                <option value="">-- फॉर्म निवडा --</option>
+            </select>
+
             <label>गाव निवडा:</label>
             <select id="villageSelect">
                 <option value="">-- गाव निवडा --</option>
-                <option value="गाव १">गाव १</option>
-                <option value="गाव २">गाव २</option>
             </select>
 
-            <label>आजची ओपीडी (OPD) संख्या:</label>
-            <input type="number" id="opdCount" placeholder="उदा. 45">
+            <div id="dynamicFieldsContainer">
+                </div>
 
-            <label>आजची लसीकरण संख्या:</label>
-            <input type="number" id="vaccineCount" placeholder="उदा. 12">
-
-            <button class="primary-btn" onclick="saveData()">माहिती सेव्ह करा</button>
-            <button class="sync-btn" onclick="syncData()">सर्व्हरवर पाठवा (Sync)</button>
-            
-            <p id="syncMessage" style="text-align:center; font-weight:bold;"></p>
+            <button class="primary-btn" onclick="saveEntry()">माहिती सेव्ह करा</button>
+            <button class="sync-btn" onclick="manualSync()">सर्व्हरवर पाठवा (Sync)</button>
+            <p id="syncStatus" style="text-align:center; font-weight:bold;"></p>
         </div>
     </div>
 
 <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbzODuA9XnQrD1vYnwggn7PabqYNd3dp9tMBqTsLyWLdVP3Zl0K-4Zg_fuxjtOHWjQKs/exec";
+    const GAS_URL = "तुमची_नवीन_DEPLOY_URL_येथे_टाका";
+    let masterData = { forms: [], villages: [], subCenters: [] };
+    let currentUser = null;
 
-    function checkPassword() {
-        const pass = document.getElementById('sitePassword').value.trim();
-        if(pass === "1234") { 
+    // १. साईट पासवर्ड चेक
+    function checkSitePassword() {
+        if(document.getElementById('sitePassword').value.trim() === "1234") {
             document.getElementById('passwordScreenOverlay').classList.add('hidden');
             document.getElementById('mainAppContainer').classList.remove('hidden');
-            document.getElementById('passError').classList.add('hidden'); // पासवर्ड बरोबर असल्यास एरर लपवा
+            fetchInitialData();
         } else {
-            document.getElementById('passError').classList.remove('hidden'); // पासवर्ड चुकीचा असल्यास फोटोसारखा एरर दाखवा
+            document.getElementById('sitePassError').classList.remove('hidden');
         }
     }
 
-    window.addEventListener('online', () => updateStatus(true));
-    window.addEventListener('offline', () => updateStatus(false));
-
-    function updateStatus(isOnline) {
-        const statusDiv = document.getElementById('statusIndicator');
-        if(isOnline) {
-            statusDiv.className = "status online";
-            statusDiv.innerText = "इंटरनेट सुरू आहे (Online)";
-        } else {
-            statusDiv.className = "status offline";
-            statusDiv.innerText = "इंटरनेट बंद आहे (Offline) - डेटा मोबाईलमध्ये सेव्ह होईल";
-        }
+    // २. गुगल शीटमधून सुरुवातीचा डेटा (Forms, Villages) घेणे
+    async function fetchInitialData() {
+        try {
+            const resp = await fetch(GAS_URL + "?action=getInitialData");
+            const res = await resp.json();
+            if(res.success) {
+                masterData = res;
+                populateFormList();
+            }
+        } catch(e) { console.log("Data fetch failed, working with cache."); }
     }
 
-    async function loginUser() {
-        const mobile = document.getElementById('mobileInput').value.trim();
-        document.getElementById('loginMessage').innerText = "तपासत आहे...";
+    function populateFormList() {
+        const fSelect = document.getElementById('formSelect');
+        masterData.forms.forEach(f => {
+            let opt = document.createElement('option');
+            opt.value = f.FormID;
+            opt.innerText = f.FormName;
+            fSelect.appendChild(opt);
+        });
+    }
+
+    // ३. कर्मचारी लॉगिन प्रक्रिया
+    async function processLogin() {
+        const mobile = document.getElementById('userMobile').value.trim();
+        const pass = document.getElementById('userPass').value.trim();
         
-        if(mobile.length >= 10) {
-            localStorage.setItem("userMobile", mobile);
-            document.getElementById('loginScreen').classList.add('hidden');
-            document.getElementById('appScreen').classList.remove('hidden');
-            document.getElementById('userNameDisplay').innerText = mobile;
-        } else {
-            document.getElementById('loginMessage').innerText = "कृपया योग्य नंबर टाका.";
+        if(!mobile || !pass) { alert("कृपया नंबर आणि पासवर्ड टाका."); return; }
+
+        document.getElementById('loginMsg').innerText = "तपासत आहे...";
+
+        try {
+            const resp = await fetch(GAS_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "login", mobileNo: mobile, password: pass })
+            });
+            const res = await resp.json();
+            
+            if(res.success) {
+                currentUser = res.user;
+                currentUser.mobile = mobile;
+                showAppScreen();
+            } else {
+                document.getElementById('loginMsg').innerText = res.message;
+            }
+        } catch(e) {
+            alert("लॉगिनसाठी इंटरनेट आवश्यक आहे.");
         }
     }
 
-    function saveData() {
+    function showAppScreen() {
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('appScreen').classList.remove('hidden');
+        document.getElementById('displayUserName').innerText = currentUser.name;
+        document.getElementById('displaySubCenter').innerText = currentUser.subcenter;
+
+        // फक्त या कर्मचाऱ्याच्या उपकेंद्राची गावे फिल्टर करणे
+        const vSelect = document.getElementById('villageSelect');
+        vSelect.innerHTML = '<option value="">-- गाव निवडा --</option>';
+        masterData.villages.filter(v => v.SubCenterID === currentUser.subcenter || v.SubCenterID === "All")
+            .forEach(v => {
+                let opt = document.createElement('option');
+                opt.value = v.VillageName;
+                opt.innerText = v.VillageName;
+                vSelect.appendChild(opt);
+            });
+    }
+
+    // ४. डायनॅमिक फॉर्म रेंडर करणे (FormsMaster मधील StructureJSON नुसार)
+    function renderDynamicForm() {
+        const formID = document.getElementById('formSelect').value;
+        const container = document.getElementById('dynamicFieldsContainer');
+        container.innerHTML = "";
+        
+        const selectedForm = masterData.forms.find(f => f.FormID === formID);
+        if(!selectedForm) return;
+
+        const fields = JSON.parse(selectedForm.StructureJSON);
+        for(let key in fields) {
+            let label = document.createElement('label');
+            label.innerText = fields[key];
+            let input = document.createElement('input');
+            input.type = "text";
+            input.id = "field_" + key;
+            input.placeholder = fields[key] + " प्रविष्ट करा";
+            container.appendChild(label);
+            container.appendChild(input);
+        }
+    }
+
+    function saveEntry() {
+        const formID = document.getElementById('formSelect').value;
+        const village = document.getElementById('villageSelect').value;
+        if(!formID || !village) { alert("कृपया फॉर्म आणि गाव निवडा!"); return; }
+
+        let formData = {};
+        const fields = JSON.parse(masterData.forms.find(f => f.FormID === formID).StructureJSON);
+        for(let key in fields) {
+            formData[fields[key]] = document.getElementById("field_" + key).value;
+        }
+
         const entry = {
             entryID: Date.now(),
-            mobileNo: localStorage.getItem("userMobile"),
-            subCenter: "औसा उपकेंद्र", 
-            village: document.getElementById('villageSelect').value,
-            formID: "DailyReport",
-            formData: {
-                OPD: document.getElementById('opdCount').value,
-                Vaccination: document.getElementById('vaccineCount').value
-            }
+            mobileNo: currentUser.mobile,
+            subCenter: currentUser.subcenter,
+            village: village,
+            formID: formID,
+            formData: formData
         };
-
-        if(!entry.village) { alert("कृपया गाव निवडा!"); return; }
 
         let queue = JSON.parse(localStorage.getItem("syncQueue") || "[]");
         queue.push(entry);
         localStorage.setItem("syncQueue", JSON.stringify(queue));
 
-        alert("माहिती मोबाईलमध्ये सुरक्षित सेव्ह झाली आहे!");
-        
-        document.getElementById('opdCount').value = "";
-        document.getElementById('vaccineCount').value = "";
-
-        if(navigator.onLine) syncData(); 
+        alert("माहिती ऑफलाईन सेव्ह झाली!");
+        document.getElementById('dynamicFieldsContainer').innerHTML = "";
+        document.getElementById('formSelect').value = "";
     }
 
-    async function syncData() {
+    async function manualSync() {
+        if(!navigator.onLine) { alert("इंटरनेट नाही!"); return; }
         let queue = JSON.parse(localStorage.getItem("syncQueue") || "[]");
-        if(queue.length === 0) {
-            document.getElementById('syncMessage').innerText = "पाठवण्यासाठी नवीन माहिती नाही.";
-            return;
-        }
-
-        if(!navigator.onLine) {
-            alert("इंटरनेट बंद आहे. इंटरनेट आल्यावर माहिती पाठवली जाईल.");
-            return;
-        }
-
-        document.getElementById('syncMessage').innerText = "माहिती सर्व्हरवर पाठवत आहे...";
+        if(queue.length === 0) return;
 
         try {
-            const response = await fetch(GAS_URL, {
+            const resp = await fetch(GAS_URL, {
                 method: "POST",
                 body: JSON.stringify({ action: "syncData", payload: queue })
             });
-            const result = await response.json();
-            
-            if(result.success) {
-                localStorage.setItem("syncQueue", "[]"); 
-                document.getElementById('syncMessage').innerText = "माहिती यशस्वीरित्या जमा झाली!";
-                document.getElementById('syncMessage').style.color = "green";
+            const res = await resp.json();
+            if(res.success) {
+                localStorage.setItem("syncQueue", "[]");
+                document.getElementById('syncStatus').innerText = "सर्व डेटा सिंक झाला!";
             }
-        } catch(e) {
-            document.getElementById('syncMessage').innerText = "काहीतरी चूक झाली, नंतर पुन्हा प्रयत्न करा.";
-            document.getElementById('syncMessage').style.color = "red";
-        }
+        } catch(e) { alert("सिंक अयशस्वी."); }
     }
 
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js');
-    }
-    
-    updateStatus(navigator.onLine);
+    window.addEventListener('online', () => document.getElementById('statusIndicator').className = "status online");
+    window.addEventListener('offline', () => document.getElementById('statusIndicator').className = "status offline");
 </script>
-
 </body>
 </html>
