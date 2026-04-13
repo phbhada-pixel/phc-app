@@ -64,11 +64,15 @@
             <div id="adminBtnDiv" class="hidden">
                 <button class="btn-admin" onclick="showSection('adminPanel')">⚙️ Admin Settings</button>
             </div>
+            
             <label>फॉर्म निवडा:</label>
             <select id="selForm" onchange="loadDynamicFields()"></select>
+            
             <label>गाव निवडा:</label>
             <select id="selVillage"></select>
+
             <div id="dynamicFormArea"></div>
+            
             <button class="btn-primary" onclick="saveDataLocal()">माहिती जतन करा</button>
             <button onclick="syncDataToServer()" style="background:#28a745; color:white;">Cloud Sync</button>
             <p id="syncStatus" style="text-align:center; font-size:14px;"></p>
@@ -93,7 +97,7 @@
             const r = await fetch(GAS_URL + "?action=getInitialData");
             const d = await r.json();
             if(d.success) { masterData = d; updateFormDropdown(); }
-        } catch(e) { console.log("Offline mode active"); }
+        } catch(e) { console.error("Fetch failed"); }
     }
 
     function updateFormDropdown() {
@@ -108,7 +112,6 @@
         const m = document.getElementById('mob').value.trim();
         const p = document.getElementById('pwd').value.trim();
         if(!m || !p) { alert("नंबर आणि पासवर्ड टाका"); return; }
-        
         try {
             const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"login", mobileNo:m, password:p}) });
             const d = await r.json();
@@ -121,23 +124,23 @@
                 if(user.role === "Admin") document.getElementById('adminBtnDiv').classList.remove('hidden');
                 loadVillages();
             } else { alert(d.message); }
-        } catch(e) { alert("इंटरनेट तपासा."); }
+        } catch(e) { alert("लॉगिन अयशस्वी. इंटरनेट तपासा."); }
     }
 
     function loadVillages() {
         const vSel = document.getElementById('selVillage');
         vSel.innerHTML = '<option value="">-- गाव निवडा --</option>';
-        masterData.villages.filter(v => v.SubCenterID === user.subcenter || v.SubCenterID === "All")
-            .forEach(v => vSel.innerHTML += `<option value="${v.VillageName}">${v.VillageName}</option>`);
+        // Case-insensitive filtering for "Bhada"
+        masterData.villages.filter(v => 
+            v.SubCenterID.toLowerCase() === user.subcenter.toLowerCase() || 
+            v.SubCenterID.toLowerCase() === "all"
+        ).forEach(v => vSel.innerHTML += `<option value="${v.VillageName}">${v.VillageName}</option>`);
     }
 
     function showSection(id) {
-        // सर्व मुख्य कंटेनर लपवा
         document.getElementById('entryScreen').classList.add('hidden');
         document.getElementById('adminPanel').classList.add('hidden');
         document.getElementById('formBuilder').classList.add('hidden');
-
-        // टार्गेट सेक्शन उघडा
         if(id === 'formBuilder') {
             document.getElementById('adminPanel').classList.remove('hidden');
             document.getElementById('formBuilder').classList.remove('hidden');
@@ -150,35 +153,35 @@
         const id = Date.now();
         const html = `
             <div class="field-card" id="f_${id}">
-                <input type="text" placeholder="फिल्डचे नाव" class="fname">
-                <select class="ftype" onchange="toggleSubField(${id}, this.value)">
-                    <option value="text">Text</option>
-                    <option value="number">Number</option>
-                    <option value="date">Date</option>
-                    <option value="yesno">Yes/No</option>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" placeholder="फिल्डचे नाव" class="fname" style="flex:2;">
+                    <input type="text" placeholder="Default व्हॅल्यू" class="fdefault" style="flex:1;">
+                </div>
+                <select class="ftype">
+                    <option value="text">Text (मजकूर)</option>
+                    <option value="number">Number (आकडे)</option>
+                    <option value="date">Date (तारीख)</option>
+                    <option value="yesno">Yes/No (हो/नाही)</option>
                 </select>
-                <div id="sub_${id}" class="hidden" style="margin-top:10px; border-left:3px solid var(--primary); padding-left:10px;">
+                <div style="margin-top:10px; background:#eef; padding:10px; border-radius:5px;">
+                    <label style="font-size:12px;">सब-फिल्ड हवी असल्यास नाव लिहा:</label>
                     <input type="text" placeholder="सब-फिल्डचे नाव" class="sname">
                 </div>
             </div>`;
         document.getElementById('fieldsList').insertAdjacentHTML('beforeend', html);
     }
 
-    function toggleSubField(id, val) {
-        const div = document.getElementById('sub_'+id);
-        val === 'yesno' ? div.classList.remove('hidden') : div.classList.add('hidden');
-    }
-
     async function saveFullForm() {
         const name = document.getElementById('newFormName').value;
         const type = document.getElementById('newFormType').value;
-        if(!name) { alert("नाव टाका"); return; }
+        if(!name) { alert("फॉर्मचे नाव टाका"); return; }
         
         const fieldElements = document.querySelectorAll('.field-card');
         let fields = [];
         fieldElements.forEach(el => {
             fields.push({
                 label: el.querySelector('.fname').value,
+                defaultVal: el.querySelector('.fdefault').value || "",
                 type: el.querySelector('.ftype').value,
                 subLabel: el.querySelector('.sname').value || null
             });
@@ -199,15 +202,35 @@
         const struct = JSON.parse(f.StructureJSON);
         struct.forEach((field, i) => {
             let inputHtml = "";
+            let defValue = field.defaultVal || "";
+
             if(field.type === 'yesno') {
-                inputHtml = `<select id="inp_${i}" onchange="document.getElementById('subdiv_${i}').style.display=(this.value==='Yes'?'block':'none')">
-                    <option value="No">नाही</option><option value="Yes">हो</option>
-                </select><div id="subdiv_${i}" style="display:none; margin-left:20px;"><label>${field.subLabel}:</label><input type="text" id="subinp_${i}"></div>`;
+                inputHtml = `<select id="inp_${i}" onchange="toggleSubDisplay(${i})">
+                    <option value="No">No</option>
+                    <option value="Yes" ${defValue.toLowerCase() === 'yes' ? 'selected' : ''}>Yes</option>
+                </select>`;
             } else {
-                inputHtml = `<input type="${field.type}" id="inp_${i}">`;
+                inputHtml = `<input type="${field.type}" id="inp_${i}" value="${defValue}">`;
             }
-            area.innerHTML += `<label>${field.label}:</label>${inputHtml}`;
+
+            let subHtml = "";
+            if(field.subLabel) {
+                subHtml = `<div id="subdiv_${i}" style="display:none; margin-left:20px; border-left:2px solid orange; padding-left:10px;">
+                    <label style="color:orange;">${field.subLabel}:</label>
+                    <input type="text" id="subinp_${i}">
+                </div>`;
+            }
+
+            area.innerHTML += `<div style="margin-bottom:15px;"><label><b>${field.label}:</b></label>${inputHtml}${subHtml}</div>`;
         });
+    }
+
+    function toggleSubDisplay(i) {
+        const subDiv = document.getElementById('subdiv_'+i);
+        if(subDiv) {
+            const val = document.getElementById('inp_'+i).value;
+            subDiv.style.display = (val === 'Yes') ? 'block' : 'none';
+        }
     }
 
     function saveDataLocal() {
@@ -219,7 +242,7 @@
         const struct = JSON.parse(f.StructureJSON);
         struct.forEach((field, i) => {
             formData[field.label] = document.getElementById('inp_'+i).value;
-            if(field.type === 'yesno' && formData[field.label] === 'Yes') {
+            if(field.subLabel && document.getElementById('subinp_'+i)) {
                 formData[field.subLabel] = document.getElementById('subinp_'+i).value;
             }
         });
@@ -227,17 +250,21 @@
         let queue = JSON.parse(localStorage.getItem("syncQueue") || "[]");
         queue.push(entry);
         localStorage.setItem("syncQueue", JSON.stringify(queue));
-        alert("माहिती मोबाईलमध्ये सेव्ह झाली!");
+        alert("माहिती स्थानिकरित्या साठवली!");
     }
 
     async function syncDataToServer() {
         let queue = JSON.parse(localStorage.getItem("syncQueue") || "[]");
-        if(queue.length === 0) { alert("नवीन डेटा नाही"); return; }
+        if(queue.length === 0) { alert("सिंक करण्यासाठी डेटा नाही"); return; }
         document.getElementById('syncStatus').innerText = "सिंक होत आहे...";
         try {
             const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"syncData", payload: queue}) });
             const d = await r.json();
-            if(d.success) { localStorage.setItem("syncQueue", "[]"); alert("सिंक यशस्वी!"); document.getElementById('syncStatus').innerText = ""; }
+            if(d.success) {
+                localStorage.setItem("syncQueue", "[]");
+                alert("Cloud Sync यशस्वी!");
+                document.getElementById('syncStatus').innerText = "";
+            }
         } catch(e) { alert("सिंक एरर"); }
     }
 </script>
