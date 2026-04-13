@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>आरोग्य केंद्र डेटा संकलन</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        /* मुख्य ॲपचे डिझाईन */
+        body { font-family: sans-serif; background-color: #f4f4f9; padding: 0; margin: 0; font-size: 18px; }
+        .container { max-width: 500px; margin: 20px auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        input, select, button { width: 100%; padding: 15px; margin: 10px 0; font-size: 18px; border-radius: 5px; border: 2px solid #ccc; box-sizing: border-box; }
+        .primary-btn { background-color: #0056b3; color: white; font-weight: bold; cursor: pointer; border: none; }
+        .sync-btn { background-color: #28a745; color: white; font-weight: bold; cursor: pointer; border: none; margin-top: 20px;}
+        .status { padding: 10px; text-align: center; font-weight: bold; border-radius: 5px; margin-bottom: 20px; }
+        .online { background-color: #d4edda; color: #155724; }
+        .offline { background-color: #fff3cd; color: #856404; }
+        .hidden { display: none !important; }
+        h2, h3 { color: #333; text-align: center; }
+
+        /* पासवर्ड स्क्रीन डिझाईन */
+        #passwordScreenOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+            background-color: #0f1c24; display: flex; justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+        .password-card {
+            background-color: #ffffff; border-radius: 8px; padding: 40px;
+            width: 90%; max-width: 400px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); box-sizing: border-box;
+        }
+        .password-card h2 { margin: 0 0 12px 0; font-size: 24px; color: #111820; text-align: left; }
+        .password-card p { margin: 0 0 24px 0; font-size: 16px; color: #111820; text-align: left;}
+        
+        /* नवीन एरर मेसेज बॉक्स (फोटोसारखा) */
+        .error-banner {
+            background-color: #fff0f0; 
+            color: #d32f2f; 
+            padding: 12px; 
+            border-radius: 4px; 
+            font-size: 14px; 
+            margin-bottom: 15px; 
+            text-align: left;
+        }
+
+        .password-card input { border: 2px solid #f2a900; outline: none; margin-top: 0;}
+        .password-card button { background-color: #00705a; color: white; font-weight: bold; border: none; }
+    </style>
+</head>
+<body>
+
+    <div id="passwordScreenOverlay">
+        <div class="password-card">
+            <h2>Password protected site</h2>
+            <p>Please enter your password to get access.</p>
+            
+            <div id="passError" class="error-banner hidden">Wrong password, please try again.</div>
+            
+            <input type="password" id="sitePassword" placeholder="Password">
+            <button onclick="checkPassword()">Submit</button>
+        </div>
+    </div>
+
+    <div class="container hidden" id="mainAppContainer">
+        <div id="statusIndicator" class="status online">इंटरनेट सुरू आहे (Online)</div>
+
+        <div id="loginScreen">
+            <h2>आरोग्य कर्मचारी लॉगिन</h2>
+            <input type="tel" id="mobileInput" placeholder="मोबाईल नंबर टाका">
+            <button class="primary-btn" onclick="loginUser()">लॉगिन करा</button>
+            <p id="loginMessage" style="color:red; text-align:center;"></p>
+        </div>
+
+        <div id="appScreen" class="hidden">
+            <h3>माहिती भरा</h3>
+            <p><b>कर्मचारी:</b> <span id="userNameDisplay"></span></p>
+            
+            <label>गाव निवडा:</label>
+            <select id="villageSelect">
+                <option value="">-- गाव निवडा --</option>
+                <option value="गाव १">गाव १</option>
+                <option value="गाव २">गाव २</option>
+            </select>
+
+            <label>आजची ओपीडी (OPD) संख्या:</label>
+            <input type="number" id="opdCount" placeholder="उदा. 45">
+
+            <label>आजची लसीकरण संख्या:</label>
+            <input type="number" id="vaccineCount" placeholder="उदा. 12">
+
+            <button class="primary-btn" onclick="saveData()">माहिती सेव्ह करा</button>
+            <button class="sync-btn" onclick="syncData()">सर्व्हरवर पाठवा (Sync)</button>
+            
+            <p id="syncMessage" style="text-align:center; font-weight:bold;"></p>
+        </div>
+    </div>
+
+<script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbzODuA9XnQrD1vYnwggn7PabqYNd3dp9tMBqTsLyWLdVP3Zl0K-4Zg_fuxjtOHWjQKs/exec";
+
+    function checkPassword() {
+        const pass = document.getElementById('sitePassword').value.trim();
+        if(pass === "1234") { 
+            document.getElementById('passwordScreenOverlay').classList.add('hidden');
+            document.getElementById('mainAppContainer').classList.remove('hidden');
+            document.getElementById('passError').classList.add('hidden'); // पासवर्ड बरोबर असल्यास एरर लपवा
+        } else {
+            document.getElementById('passError').classList.remove('hidden'); // पासवर्ड चुकीचा असल्यास फोटोसारखा एरर दाखवा
+        }
+    }
+
+    window.addEventListener('online', () => updateStatus(true));
+    window.addEventListener('offline', () => updateStatus(false));
+
+    function updateStatus(isOnline) {
+        const statusDiv = document.getElementById('statusIndicator');
+        if(isOnline) {
+            statusDiv.className = "status online";
+            statusDiv.innerText = "इंटरनेट सुरू आहे (Online)";
+        } else {
+            statusDiv.className = "status offline";
+            statusDiv.innerText = "इंटरनेट बंद आहे (Offline) - डेटा मोबाईलमध्ये सेव्ह होईल";
+        }
+    }
+
+    async function loginUser() {
+        const mobile = document.getElementById('mobileInput').value.trim();
+        document.getElementById('loginMessage').innerText = "तपासत आहे...";
+        
+        if(mobile.length >= 10) {
+            localStorage.setItem("userMobile", mobile);
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('appScreen').classList.remove('hidden');
+            document.getElementById('userNameDisplay').innerText = mobile;
+        } else {
+            document.getElementById('loginMessage').innerText = "कृपया योग्य नंबर टाका.";
+        }
+    }
+
+    function saveData() {
+        const entry = {
+            entryID: Date.now(),
+            mobileNo: localStorage.getItem("userMobile"),
+            subCenter: "औसा उपकेंद्र", 
+            village: document.getElementById('villageSelect').value,
+            formID: "DailyReport",
+            formData: {
+                OPD: document.getElementById('opdCount').value,
+                Vaccination: document.getElementById('vaccineCount').value
+            }
+        };
+
+        if(!entry.village) { alert("कृपया गाव निवडा!"); return; }
+
+        let queue = JSON.parse(localStorage.getItem("syncQueue") || "[]");
+        queue.push(entry);
+        localStorage.setItem("syncQueue", JSON.stringify(queue));
+
+        alert("माहिती मोबाईलमध्ये सुरक्षित सेव्ह झाली आहे!");
+        
+        document.getElementById('opdCount').value = "";
+        document.getElementById('vaccineCount').value = "";
+
+        if(navigator.onLine) syncData(); 
+    }
+
+    async function syncData() {
+        let queue = JSON.parse(localStorage.getItem("syncQueue") || "[]");
+        if(queue.length === 0) {
+            document.getElementById('syncMessage').innerText = "पाठवण्यासाठी नवीन माहिती नाही.";
+            return;
+        }
+
+        if(!navigator.onLine) {
+            alert("इंटरनेट बंद आहे. इंटरनेट आल्यावर माहिती पाठवली जाईल.");
+            return;
+        }
+
+        document.getElementById('syncMessage').innerText = "माहिती सर्व्हरवर पाठवत आहे...";
+
+        try {
+            const response = await fetch(GAS_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "syncData", payload: queue })
+            });
+            const result = await response.json();
+            
+            if(result.success) {
+                localStorage.setItem("syncQueue", "[]"); 
+                document.getElementById('syncMessage').innerText = "माहिती यशस्वीरित्या जमा झाली!";
+                document.getElementById('syncMessage').style.color = "green";
+            }
+        } catch(e) {
+            document.getElementById('syncMessage').innerText = "काहीतरी चूक झाली, नंतर पुन्हा प्रयत्न करा.";
+            document.getElementById('syncMessage').style.color = "red";
+        }
+    }
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+    }
+    
+    updateStatus(navigator.onLine);
+</script>
+
+</body>
+</html>
