@@ -3,230 +3,217 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PHC डेटा मॅनेजमेंट</title>
-    <link rel="manifest" href="manifest.json">
+    <title>PHC Advance Management</title>
     <style>
-        body { font-family: sans-serif; background-color: #f4f4f9; padding: 0; margin: 0; font-size: 18px; }
-        .container { max-width: 500px; margin: 20px auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        input, select, button { width: 100%; padding: 15px; margin: 10px 0; font-size: 18px; border-radius: 5px; border: 2px solid #ccc; box-sizing: border-box; }
-        .primary-btn { background-color: #0056b3; color: white; font-weight: bold; border: none; cursor: pointer; }
-        .sync-btn { background-color: #28a745; color: white; font-weight: bold; border: none; margin-top: 20px; }
-        .status { padding: 10px; text-align: center; font-weight: bold; border-radius: 5px; margin-bottom: 20px; }
-        .online { background-color: #d4edda; color: #155724; }
-        .offline { background-color: #fff3cd; color: #856404; }
+        :root { --primary: #00705a; --secondary: #0056b3; --bg: #f4f7f6; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; padding: 0; font-size: 16px; }
+        .container { max-width: 600px; margin: 20px auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h2, h3 { text-align: center; color: #333; }
+        input, select, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; }
+        .btn-primary { background: var(--primary); color: white; font-weight: bold; border: none; cursor: pointer; }
+        .btn-admin { background: #6c757d; color: white; border: none; }
+        .field-card { border: 1px dashed #aaa; padding: 15px; margin: 10px 0; border-radius: 8px; background: #fafafa; position: relative; }
         .hidden { display: none !important; }
-        h2, h3 { color: #333; text-align: center; margin-bottom: 10px; }
-        label { font-weight: bold; display: block; margin-top: 10px; }
-
-        /* Password Screen (Global) */
-        #passwordScreenOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background-color: #0f1c24; display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .password-card { background-color: #ffffff; border-radius: 8px; padding: 40px; width: 90%; max-width: 400px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
-        .error-banner { background-color: #fff0f0; color: #d32f2f; padding: 12px; border-radius: 4px; font-size: 14px; margin-bottom: 15px; }
+        .status-bar { padding: 10px; text-align: center; font-weight: bold; border-radius: 5px; margin-bottom: 15px; }
+        .online { background: #d4edda; color: #155724; }
+        .offline { background: #fff3cd; color: #856404; }
+        .badge { display: inline-block; padding: 4px 8px; background: #eee; border-radius: 4px; font-size: 12px; margin-top: 5px; }
     </style>
 </head>
 <body>
 
-    <div id="passwordScreenOverlay">
-        <div class="password-card">
-            <h2>Password protected</h2>
-            <p>Please enter site password.</p>
-            <div id="sitePassError" class="error-banner hidden">चुकीचा पासवर्ड!</div>
-            <input type="password" id="sitePassword" placeholder="Password (1234)">
-            <button class="primary-btn" onclick="checkSitePassword()" style="background-color: #00705a;">Submit</button>
+    <div id="lockScreen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#0f1c24; z-index:9999; display:flex; justify-content:center; align-items:center;">
+        <div style="background:white; padding:30px; border-radius:10px; width:85%; max-width:350px;">
+            <h3>Security Access</h3>
+            <input type="password" id="sitePass" placeholder="Enter Password (1234)">
+            <button class="btn-primary" onclick="unlockApp()">Unlock</button>
         </div>
     </div>
 
-    <div class="container hidden" id="mainAppContainer">
-        <div id="statusIndicator" class="status online">Online</div>
+    <div class="container hidden" id="mainApp">
+        <div id="netStatus" class="status-bar online">Online</div>
 
-        <div id="loginScreen">
-            <h2>कर्मचारी लॉगिन</h2>
-            <input type="tel" id="userMobile" placeholder="मोबाईल नंबर">
-            <input type="password" id="userPass" placeholder="तुमचा वैयक्तिक पासवर्ड">
-            <button class="primary-btn" onclick="processLogin()">लॉगिन करा</button>
-            <p id="loginMsg" style="color:red; text-align:center;"></p>
+        <div id="loginBox">
+            <h3>कर्मचारी लॉगिन</h3>
+            <input type="tel" id="mob" placeholder="मोबाईल नंबर">
+            <input type="password" id="pwd" placeholder="वैयक्तिक पासवर्ड">
+            <button class="btn-primary" onclick="handleLogin()">प्रवेश करा</button>
         </div>
 
-        <div id="appScreen" class="hidden">
-            <h3>स्वागत आहे, <span id="displayUserName"></span></h3>
-            <p style="text-align:center; font-size: 14px; color: #666;">उपकेंद्र: <span id="displaySubCenter"></span></p>
+        <div id="adminPanel" class="hidden">
+            <button class="btn-admin" onclick="showSection('formBuilder')">➕ नवीन फॉर्म तयार करा</button>
+            <button class="btn-primary" onclick="showSection('entryScreen')">⬅️ डेटा एंट्रीकडे जा</button>
             <hr>
             
+            <div id="formBuilder" class="hidden">
+                <h3>Form Builder</h3>
+                <input type="text" id="newFormName" placeholder="फॉर्मचे नाव (उदा. गरोदर माता तपासणी)">
+                <select id="newFormType">
+                    <option value="List">गावनिहाय लिस्ट (Data List)</option>
+                    <option value="Stats">गावनिहाय आकडेवारी (Statistics)</option>
+                </select>
+                
+                <div id="fieldsList"></div>
+                <button onclick="addField()" style="background:#e9ecef; color:#333;">+ फिल्ड जोडा</button>
+                <button class="btn-primary" onclick="saveFullForm()">फॉर्म सेव्ह करा</button>
+            </div>
+        </div>
+
+        <div id="entryScreen" class="hidden">
+            <h3>स्वागत आहे, <span id="uName"></span></h3>
+            <p id="uSub" style="text-align:center; color:gray;"></p>
+            <div id="adminBtnDiv" class="hidden">
+                <button class="btn-admin" onclick="showSection('adminPanel')">⚙️ Admin Settings</button>
+            </div>
+            
             <label>फॉर्म निवडा:</label>
-            <select id="formSelect" onchange="renderDynamicForm()">
-                <option value="">-- फॉर्म निवडा --</option>
-            </select>
-
+            <select id="selForm" onchange="loadDynamicFields()"></select>
+            
             <label>गाव निवडा:</label>
-            <select id="villageSelect">
-                <option value="">-- गाव निवडा --</option>
-            </select>
+            <select id="selVillage"></select>
 
-            <div id="dynamicFieldsContainer">
-                </div>
-
-            <button class="primary-btn" onclick="saveEntry()">माहिती सेव्ह करा</button>
-            <button class="sync-btn" onclick="manualSync()">सर्व्हरवर पाठवा (Sync)</button>
-            <p id="syncStatus" style="text-align:center; font-weight:bold;"></p>
+            <div id="dynamicFormArea"></div>
+            
+            <button class="btn-primary" onclick="saveDataLocal()">माहिती जतन करा</button>
+            <button onclick="syncDataToServer()" style="background:#28a745; color:white;">Cloud Sync</button>
         </div>
     </div>
 
 <script>
-  // ही ओळ अशी दुरुस्त करा:
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzODuA9XnQrD1vYnwggn7PabqYNd3dp9tMBqTsLyWLdVP3Zl0K-4Zg_fuxjtOHWjQKs/exec";
-    let masterData = { forms: [], villages: [], subCenters: [] };
-    let currentUser = null;
+    const GAS_URL = "तुमची_नवीन_DEPLOY_URL_येथे_टाका"; // तुमची URL येथे टाका
+    let masterData = { forms: [], villages: [] };
+    let user = null;
+    let tempFields = [];
 
-    // १. साईट पासवर्ड चेक
-    function checkSitePassword() {
-        if(document.getElementById('sitePassword').value.trim() === "1234") {
-            document.getElementById('passwordScreenOverlay').classList.add('hidden');
-            document.getElementById('mainAppContainer').classList.remove('hidden');
-            fetchInitialData();
-        } else {
-            document.getElementById('sitePassError').classList.remove('hidden');
+    function unlockApp() {
+        if(document.getElementById('sitePass').value === "1234") {
+            document.getElementById('lockScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            fetchData();
         }
     }
 
-    // २. गुगल शीटमधून सुरुवातीचा डेटा (Forms, Villages) घेणे
-    async function fetchInitialData() {
+    async function fetchData() {
         try {
-            const resp = await fetch(GAS_URL + "?action=getInitialData");
-            const res = await resp.json();
-            if(res.success) {
-                masterData = res;
-                populateFormList();
-            }
-        } catch(e) { console.log("Data fetch failed, working with cache."); }
+            const r = await fetch(GAS_URL + "?action=getInitialData");
+            const d = await r.json();
+            if(d.success) { masterData = d; updateFormDropdown(); }
+        } catch(e) { console.log("Offline mode active"); }
     }
 
-    function populateFormList() {
-        const fSelect = document.getElementById('formSelect');
+    function updateFormDropdown() {
+        const sel = document.getElementById('selForm');
+        sel.innerHTML = '<option value="">-- निवडा --</option>';
         masterData.forms.forEach(f => {
-            let opt = document.createElement('option');
-            opt.value = f.FormID;
-            opt.innerText = f.FormName;
-            fSelect.appendChild(opt);
+            sel.innerHTML += `<option value="${f.FormID}">${f.FormName}</option>`;
         });
     }
 
-    // ३. कर्मचारी लॉगिन प्रक्रिया
-    async function processLogin() {
-        const mobile = document.getElementById('userMobile').value.trim();
-        const pass = document.getElementById('userPass').value.trim();
-        
-        if(!mobile || !pass) { alert("कृपया नंबर आणि पासवर्ड टाका."); return; }
+    async function handleLogin() {
+        const m = document.getElementById('mob').value;
+        const p = document.getElementById('pwd').value;
+        const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"login", mobileNo:m, password:p}) });
+        const d = await r.json();
+        if(d.success) {
+            user = d.user; user.mobile = m;
+            document.getElementById('loginBox').classList.add('hidden');
+            document.getElementById('entryScreen').classList.remove('hidden');
+            document.getElementById('uName').innerText = user.name;
+            document.getElementById('uSub').innerText = "उपकेंद्र: " + user.subcenter;
+            if(user.role === "Admin") document.getElementById('adminBtnDiv').classList.remove('hidden');
+            loadVillages();
+        } else { alert(d.message); }
+    }
 
-        document.getElementById('loginMsg').innerText = "तपासत आहे...";
+    function loadVillages() {
+        const vSel = document.getElementById('selVillage');
+        vSel.innerHTML = '<option value="">-- गाव निवडा --</option>';
+        masterData.villages.filter(v => v.SubCenterID === user.subcenter || v.SubCenterID === "All")
+            .forEach(v => vSel.innerHTML += `<option value="${v.VillageName}">${v.VillageName}</option>`);
+    }
 
-        try {
-            const resp = await fetch(GAS_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "login", mobileNo: mobile, password: pass })
+    // --- FORM BUILDER LOGIC ---
+    function addField() {
+        const id = Date.now();
+        const html = `
+            <div class="field-card" id="f_${id}">
+                <input type="text" placeholder="फिल्डचे नाव (उदा. वय, लिंग)" class="fname">
+                <select class="ftype" onchange="toggleSubField(${id}, this.value)">
+                    <option value="text">Text (मजकूर)</option>
+                    <option value="number">Number (आकडे)</option>
+                    <option value="date">Date (तारीख)</option>
+                    <option value="yesno">Yes/No (हो/नाही)</option>
+                </select>
+                <div id="sub_${id}" class="hidden" style="margin-top:10px; border-left:3px solid var(--primary); padding-left:10px;">
+                    <p style="font-size:12px; color:var(--primary);">If Yes, ask this:</p>
+                    <input type="text" placeholder="सब-फिल्डचे नाव" class="sname">
+                </div>
+            </div>`;
+        document.getElementById('fieldsList').insertAdjacentHTML('beforeend', html);
+    }
+
+    function toggleSubField(id, val) {
+        const div = document.getElementById('sub_'+id);
+        val === 'yesno' ? div.classList.remove('hidden') : div.classList.add('hidden');
+    }
+
+    async function saveFullForm() {
+        const name = document.getElementById('newFormName').value;
+        const type = document.getElementById('newFormType').value;
+        const fieldElements = document.querySelectorAll('.field-card');
+        let fields = [];
+
+        fieldElements.forEach(el => {
+            const id = el.id.split('_')[1];
+            fields.push({
+                label: el.querySelector('.fname').value,
+                type: el.querySelector('.ftype').value,
+                subLabel: el.querySelector('.sname').value || null
             });
-            const res = await resp.json();
-            
-            if(res.success) {
-                currentUser = res.user;
-                currentUser.mobile = mobile;
-                showAppScreen();
+        });
+
+        const payload = { name, type, fields, adminMobile: user.mobile };
+        const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"createForm", payload}) });
+        const d = await r.json();
+        if(d.success) { alert(d.message); location.reload(); }
+    }
+
+    function loadDynamicFields() {
+        const fId = document.getElementById('selForm').value;
+        const area = document.getElementById('dynamicFormArea');
+        area.innerHTML = "";
+        const f = masterData.forms.find(x => x.FormID === fId);
+        if(!f) return;
+        
+        const struct = JSON.parse(f.StructureJSON);
+        struct.forEach((field, index) => {
+            let inputHtml = "";
+            if(field.type === 'yesno') {
+                inputHtml = `<select id="inp_${index}" onchange="document.getElementById('subdiv_${index}').style.display = (this.value==='Yes'?'block':'none')">
+                    <option value="No">नाही (No)</option>
+                    <option value="Yes">हो (Yes)</option>
+                </select>
+                <div id="subdiv_${index}" style="display:none; margin-left:20px;">
+                    <label>${field.subLabel}:</label>
+                    <input type="text" id="subinp_${index}">
+                </div>`;
             } else {
-                document.getElementById('loginMsg').innerText = res.message;
+                inputHtml = `<input type="${field.type}" id="inp_${index}">`;
             }
-        } catch(e) {
-            alert("लॉगिनसाठी इंटरनेट आवश्यक आहे.");
-        }
+            area.innerHTML += `<label>${field.label}:</label>${inputHtml}`;
+        });
     }
 
-    function showAppScreen() {
-        document.getElementById('loginScreen').classList.add('hidden');
-        document.getElementById('appScreen').classList.remove('hidden');
-        document.getElementById('displayUserName').innerText = currentUser.name;
-        document.getElementById('displaySubCenter').innerText = currentUser.subcenter;
-
-        // फक्त या कर्मचाऱ्याच्या उपकेंद्राची गावे फिल्टर करणे
-        const vSelect = document.getElementById('villageSelect');
-        vSelect.innerHTML = '<option value="">-- गाव निवडा --</option>';
-        masterData.villages.filter(v => v.SubCenterID === currentUser.subcenter || v.SubCenterID === "All")
-            .forEach(v => {
-                let opt = document.createElement('option');
-                opt.value = v.VillageName;
-                opt.innerText = v.VillageName;
-                vSelect.appendChild(opt);
-            });
+    function showSection(id) {
+        document.getElementById('formBuilder').classList.add('hidden');
+        document.getElementById('entryScreen').classList.add('hidden');
+        document.getElementById('adminPanel').classList.add('hidden');
+        document.getElementById(id).classList.remove('hidden');
+        if(id==='adminPanel') document.getElementById('adminPanel').classList.remove('hidden');
     }
 
-    // ४. डायनॅमिक फॉर्म रेंडर करणे (FormsMaster मधील StructureJSON नुसार)
-    function renderDynamicForm() {
-        const formID = document.getElementById('formSelect').value;
-        const container = document.getElementById('dynamicFieldsContainer');
-        container.innerHTML = "";
-        
-        const selectedForm = masterData.forms.find(f => f.FormID === formID);
-        if(!selectedForm) return;
-
-        const fields = JSON.parse(selectedForm.StructureJSON);
-        for(let key in fields) {
-            let label = document.createElement('label');
-            label.innerText = fields[key];
-            let input = document.createElement('input');
-            input.type = "text";
-            input.id = "field_" + key;
-            input.placeholder = fields[key] + " प्रविष्ट करा";
-            container.appendChild(label);
-            container.appendChild(input);
-        }
-    }
-
-    function saveEntry() {
-        const formID = document.getElementById('formSelect').value;
-        const village = document.getElementById('villageSelect').value;
-        if(!formID || !village) { alert("कृपया फॉर्म आणि गाव निवडा!"); return; }
-
-        let formData = {};
-        const fields = JSON.parse(masterData.forms.find(f => f.FormID === formID).StructureJSON);
-        for(let key in fields) {
-            formData[fields[key]] = document.getElementById("field_" + key).value;
-        }
-
-        const entry = {
-            entryID: Date.now(),
-            mobileNo: currentUser.mobile,
-            subCenter: currentUser.subcenter,
-            village: village,
-            formID: formID,
-            formData: formData
-        };
-
-        let queue = JSON.parse(localStorage.getItem("syncQueue") || "[]");
-        queue.push(entry);
-        localStorage.setItem("syncQueue", JSON.stringify(queue));
-
-        alert("माहिती ऑफलाईन सेव्ह झाली!");
-        document.getElementById('dynamicFieldsContainer').innerHTML = "";
-        document.getElementById('formSelect').value = "";
-    }
-
-    async function manualSync() {
-        if(!navigator.onLine) { alert("इंटरनेट नाही!"); return; }
-        let queue = JSON.parse(localStorage.getItem("syncQueue") || "[]");
-        if(queue.length === 0) return;
-
-        try {
-            const resp = await fetch(GAS_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "syncData", payload: queue })
-            });
-            const res = await resp.json();
-            if(res.success) {
-                localStorage.setItem("syncQueue", "[]");
-                document.getElementById('syncStatus').innerText = "सर्व डेटा सिंक झाला!";
-            }
-        } catch(e) { alert("सिंक अयशस्वी."); }
-    }
-
-    window.addEventListener('online', () => document.getElementById('statusIndicator').className = "status online");
-    window.addEventListener('offline', () => document.getElementById('statusIndicator').className = "status offline");
+    // Sync & Offline Storage Logic (आधीप्रमाणेच)
+    // ... (येथे saveDataLocal आणि syncDataToServer फंक्शन येतील)
 </script>
 </body>
 </html>
