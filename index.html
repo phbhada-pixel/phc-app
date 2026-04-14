@@ -21,6 +21,8 @@
         .btn-remove { background: #ff4d4d; color: white; padding: 4px 8px; font-size: 12px; border: none; width: auto; float: right; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .btn-logout { background: #dc3545; color: white; padding: 6px 12px; font-size: 14px; border: none; border-radius: 4px; cursor: pointer; width: auto; }
+        .row-flex { display: flex; gap: 10px; align-items: center; }
+        .row-flex > div { flex: 1; }
     </style>
 </head>
 <body>
@@ -48,20 +50,18 @@
                 <button class="btn-admin" onclick="openNewFormBuilder()">➕ नवीन फॉर्म</button>
                 <button class="btn-primary" onclick="showSection('entryScreen')">⬅️ डेटा एंट्री</button>
             </div>
-            
             <div id="existingFormsArea">
                 <h4>अस्तित्वात असलेले फॉर्म (Edit करा)</h4>
                 <div id="formsEditList"></div>
             </div>
             <hr>
-            
             <div id="formBuilder" class="hidden" style="background: #fff8f0; padding: 15px; border-radius: 8px; border: 1px solid orange;">
                 <h3 id="builderTitle">नवीन फॉर्म तयार करा</h3>
                 <input type="hidden" id="editFormID">
                 <input type="text" id="newFormName" placeholder="फॉर्मचे नाव (उदा. पाहणी अहवाल)">
                 <select id="newFormType">
-                    <option value="List">गावनिहाय लिस्ट</option>
-                    <option value="Stats">गावनिहाय आकडेवारी</option>
+                    <option value="List">गावनिहाय लिस्ट (Data List)</option>
+                    <option value="Stats">गावनिहाय आकडेवारी (Statistics)</option>
                 </select>
                 <div id="fieldsList"></div>
                 <button onclick="addField()" style="background:#e9ecef; color:#333; font-weight:bold; border:1px solid #ccc;">+ नवीन प्रश्न जोडा</button>
@@ -81,16 +81,38 @@
             </div>
             
             <label>फॉर्म निवडा:</label>
-            <select id="selForm" onchange="loadDynamicFields()"></select>
+            <select id="selForm" onchange="updateVillageDropdown(); loadDynamicFields();"></select>
+            
+            <div class="row-flex" style="margin-top: 10px;">
+                <div>
+                    <label>महिना:</label>
+                    <select id="selMonth" onchange="updateVillageDropdown()">
+                        <option value="जानेवारी">जानेवारी</option><option value="फेब्रुवारी">फेब्रुवारी</option>
+                        <option value="मार्च">मार्च</option><option value="एप्रिल" selected>एप्रिल</option>
+                        <option value="मे">मे</option><option value="जून">जून</option>
+                        <option value="जुलै">जुलै</option><option value="ऑगस्ट">ऑगस्ट</option>
+                        <option value="सप्टेंबर">सप्टेंबर</option><option value="ऑक्टोबर">ऑक्टोबर</option>
+                        <option value="नोव्हेंबर">नोव्हेंबर</option><option value="डिसेंबर">डिसेंबर</option>
+                    </select>
+                </div>
+                <div>
+                    <label>वर्ष:</label>
+                    <select id="selYear" onchange="updateVillageDropdown()">
+                        <option value="2025">2025</option>
+                        <option value="2026" selected>2026</option>
+                        <option value="2027">2027</option>
+                    </select>
+                </div>
+            </div>
             
             <label>गाव निवडा:</label>
             <select id="selVillage"></select>
 
             <div id="dynamicFormArea"></div>
             
-            <button class="btn-primary" onclick="saveDataLocal()">माहिती जतन करा</button>
+            <button class="btn-primary" onclick="saveDataLocal()" style="margin-top:20px;">माहिती जतन करा</button>
             <button onclick="syncDataToServer()" style="background:#28a745; color:white;">Cloud Sync</button>
-            <p id="syncStatus" style="text-align:center; font-size:14px;"></p>
+            <p id="syncStatus" style="text-align:center; font-size:14px; color:green; font-weight:bold;"></p>
         </div>
     </div>
 
@@ -143,7 +165,7 @@
         document.getElementById('uName').innerText = user.name;
         document.getElementById('uSub').innerText = "उपकेंद्र: " + user.subcenter;
         if(user.role === "Admin") { document.getElementById('adminBtnDiv').classList.remove('hidden'); renderFormsListForEdit(); }
-        loadVillages();
+        updateVillageDropdown(); // लोड होताना गावे दाखवा
     }
 
     function logoutUser() {
@@ -152,6 +174,7 @@
         }
     }
 
+    // --- Admin Form Builder Logic (आधीप्रमाणेच) ---
     function renderFormsListForEdit() {
         const listDiv = document.getElementById('formsEditList');
         listDiv.innerHTML = "";
@@ -227,21 +250,16 @@
         document.getElementById('group_' + id).style.display = (val === 'group') ? 'block' : 'none';
     }
 
-    // मोबाइलसाठी खास दुरुस्त केलेले 'Vertical' लेआऊट आणि छोटे 'X' बटण 
     function addSubFieldUI(parentId, sfData = null) {
         const sfId = Math.floor(Math.random() * 1000000);
         const html = `
             <div class="sub-field-item" id="sf_${sfId}" style="position: relative; display: flex; flex-direction: column; gap: 8px; background: #fff; padding: 12px; padding-top: 25px; border-radius: 5px; border: 1px solid #ccc; margin-top: 10px;">
-                
                 <button type="button" class="btn-remove" onclick="this.parentElement.remove()" style="position: absolute; top: 5px; right: 5px;">X</button>
-                
                 <input type="text" placeholder="उप-प्रश्नाचे नाव (उदा. उपलब्धता)" class="sfname" style="width: 100%;" value="${sfData ? sfData.label : ''}">
-                
                 <select class="sftype" style="width: 100%;" onchange="document.getElementById('sfopts_${sfId}').style.display = this.value==='dropdown' ? 'block' : 'none'">
                     <option value="text" ${sfData && sfData.type==='text'?'selected':''}>Text (मजकूर)</option>
                     <option value="dropdown" ${sfData && sfData.type==='dropdown'?'selected':''}>Dropdown (पर्याय)</option>
                 </select>
-                
                 <input type="text" id="sfopts_${sfId}" placeholder="पर्याय लिहा (स्वल्पविरामाने वेगळे करा)" class="sfopts" style="width: 100%; margin-top: 5px; display:${sfData && sfData.type==='dropdown'?'block':'none'}" value="${sfData ? (sfData.options || '') : ''}">
             </div>
         `;
@@ -256,7 +274,6 @@
                 type: el.querySelector('.ftype').value,
                 options: el.querySelector('.foptions') ? el.querySelector('.foptions').value : ""
             };
-            
             if (fieldObj.type === 'group') {
                 fieldObj.subFields = [];
                 el.querySelectorAll('.sub-field-item').forEach(sfEl => {
@@ -308,11 +325,36 @@
         masterData.forms.forEach(f => sel.innerHTML += `<option value="${f.FormID}">${f.FormName}</option>`);
     }
 
-    function loadVillages() {
+    // --- नवीन: गावे फिल्टर करण्याचे लॉजिक (Smart Filter) ---
+    function updateVillageDropdown() {
         const vSel = document.getElementById('selVillage');
+        const fId = document.getElementById('selForm').value;
+        const month = document.getElementById('selMonth').value;
+        const year = document.getElementById('selYear').value;
+        
         vSel.innerHTML = '<option value="">-- गाव निवडा --</option>';
-        masterData.villages.filter(v => v.SubCenterID.toLowerCase() === user.subcenter.toLowerCase() || v.SubCenterID.toLowerCase() === "all")
-            .forEach(v => vSel.innerHTML += `<option value="${v.VillageName}">${v.VillageName}</option>`);
+        if(!user) return;
+
+        const selectedForm = masterData.forms.find(f => f.FormID === fId);
+        const isStatsForm = selectedForm && selectedForm.FormType === 'Stats';
+
+        // लोकल मेमरीमधून भरलेल्या फॉर्म्सची हिस्ट्री घेणे
+        const history = JSON.parse(localStorage.getItem("submissionHistory") || "[]");
+
+        masterData.villages.filter(v => {
+            // फक्त स्वतःच्या उपकेंद्राची गावे
+            const belongsToSubCenter = v.SubCenterID.toLowerCase() === user.subcenter.toLowerCase() || v.SubCenterID.toLowerCase() === "all";
+            if(!belongsToSubCenter) return false;
+
+            // जर 'आकडेवारी' (Stats) फॉर्म असेल, आणि या महिन्यासाठी आधीच डेटा भरला असेल, तर ते गाव लपवा
+            if(isStatsForm) {
+                const isAlreadyFilled = history.some(h => h.formID === fId && h.village === v.VillageName && h.month === month && h.year === year);
+                if(isAlreadyFilled) return false;
+            }
+            return true;
+        }).forEach(v => {
+            vSel.innerHTML += `<option value="${v.VillageName}">${v.VillageName}</option>`;
+        });
     }
 
     function loadDynamicFields() {
@@ -367,9 +409,17 @@
     function saveDataLocal() {
         const fId = document.getElementById('selForm').value;
         const vName = document.getElementById('selVillage').value;
-        if(!fId || !vName) { alert("फॉर्म आणि गाव निवडा"); return; }
+        const month = document.getElementById('selMonth').value;
+        const year = document.getElementById('selYear').value;
+
+        if(!fId || !vName) { alert("कृपया फॉर्म आणि गाव निवडा!"); return; }
         
         let formData = {};
+        
+        // महिना आणि वर्ष गुगल शीटमध्ये सेव्ह करण्यासाठी JSON मध्ये ॲड केले
+        formData["महिना"] = month;
+        formData["वर्ष"] = year;
+
         const f = masterData.forms.find(x => x.FormID === fId);
         JSON.parse(f.StructureJSON).forEach((field, i) => {
             if (field.type === 'group') {
@@ -381,13 +431,23 @@
             }
         });
         
+        // सिंक करण्यासाठी रांगेत टाकणे
         const entry = { entryID: Date.now(), mobileNo: user.mobile, subCenter: user.subcenter, village: vName, formID: fId, formData: formData };
         let q = JSON.parse(localStorage.getItem("syncQueue") || "[]");
         q.push(entry);
         localStorage.setItem("syncQueue", JSON.stringify(q));
-        alert("माहिती मोबाईलमध्ये सुरक्षित सेव्ह झाली!");
-        document.getElementById('dynamicFormArea').innerHTML = ""; 
-        document.getElementById('selVillage').value = "";
+
+        // हिस्ट्री सेव्ह करणे (जेणेकरून ते गाव लपवता येईल)
+        let history = JSON.parse(localStorage.getItem("submissionHistory") || "[]");
+        history.push({formID: fId, village: vName, month: month, year: year});
+        localStorage.setItem("submissionHistory", JSON.stringify(history));
+
+        // सलग एंट्रीसाठी फॉर्म रिसेट करणे
+        document.getElementById('syncStatus').innerText = "रेकॉर्ड सेव्ह झाला! तुम्ही लगेच पुढील गावाची माहिती भरू शकता.";
+        setTimeout(() => document.getElementById('syncStatus').innerText = "", 3000);
+        
+        updateVillageDropdown(); // याने भरलेले गाव (Stats असल्यास) यादीतून गायब होईल
+        loadDynamicFields(); // फॉर्म रिकामा करेल
     }
 
     async function syncDataToServer() {
