@@ -271,6 +271,7 @@
         });
     }
 
+    // --- Report Fetch Logic ---
     async function fetchReportData() {
         const formID = document.getElementById('reportFormSelect').value;
         const selMonth = document.getElementById('reportMonth').value;
@@ -291,7 +292,6 @@
             
             if(d.success && d.reports && d.reports.length > 0) {
                 let finalReports = [];
-                
                 d.reports.forEach(rep => {
                     let headers = rep.data[0];
                     let monthIdx = headers.indexOf("महिना");
@@ -332,7 +332,6 @@
         reports.forEach(rep => {
             let data = rep.data;
             let headers = data[0];
-            
             let showIndices = [];
             headers.forEach((h, i) => { if(!hiddenColumns.includes(h)) showIndices.push(i); });
             let colCount = showIndices.length + 1; 
@@ -357,7 +356,7 @@
         container.innerHTML = html;
     }
 
-    // --- Excel (.xlsx) तयार करण्याची आणि डिझाईन (Style) देण्याची प्रगत पद्धत ---
+    // --- Excel (.xlsx) Download Logic ---
     function downloadConsolidatedExcel() {
         if(currentReports.length === 0) return;
         
@@ -372,29 +371,24 @@
             let headers = data[0];
             let showIndices = [];
             headers.forEach((h, i) => { if(!hiddenColumns.includes(h)) showIndices.push(i); });
-            let colCount = showIndices.length + 1; // +1 for Sr. No.
+            let colCount = showIndices.length + 1; 
 
             let sheetData = [];
             
-            // १. पहिली ओळ: अहवालाचे नाव (Merge & Style)
             let titleRow = Array(colCount).fill("");
             titleRow[0] = `${rep.formName} अहवाल`;
             sheetData.push(titleRow);
             
-            // २. दुसरी ओळ: उपकेंद्र आणि महिना (Merge & Style)
             let subTitleRow = Array(colCount).fill("");
             subTitleRow[0] = `उपकेंद्र: ${user.subcenter}   |   अहवाल महिना: ${periodText}`;
             sheetData.push(subTitleRow);
             
-            // ३. तिसरी ओळ: रिकामी
             sheetData.push(Array(colCount).fill(""));
 
-            // ४. चौथी ओळ: टेबलचे हेडिंग्ज (Borders, Colors)
             let headerRow = ["अ.क्र."];
             showIndices.forEach(idx => headerRow.push(headers[idx]));
             sheetData.push(headerRow);
 
-            // ५. टेबलचा डेटा
             let isNil = false;
             if(data.length === 1) {
                 isNil = true;
@@ -409,59 +403,42 @@
                 }
             }
 
-            // Worksheet बनवणे
             let ws = XLSX.utils.aoa_to_sheet(sheetData);
 
-            // 🌟 मर्ज करण्याची सोय (Merge Cells) 🌟
             ws["!merges"] = [
-                { s: { r: 0, c: 0 }, e: { r: 0, c: colCount - 1 } }, // पहिल्या ओळीचे रकाने एकत्र करणे
-                { s: { r: 1, c: 0 }, e: { r: 1, c: colCount - 1 } }  // दुसऱ्या ओळीचे रकाने एकत्र करणे
+                { s: { r: 0, c: 0 }, e: { r: 0, c: colCount - 1 } },
+                { s: { r: 1, c: 0 }, e: { r: 1, c: colCount - 1 } }
             ];
             
-            if(isNil) {
-                ws["!merges"].push({ s: { r: 4, c: 0 }, e: { r: 4, c: colCount - 1 } }); // 'निरंक' साठी रकाने एकत्र करणे
-            }
+            if(isNil) { ws["!merges"].push({ s: { r: 4, c: 0 }, e: { r: 4, c: colCount - 1 } }); }
 
-            // 🎨 कलर्स आणि स्टाईल्स (Colors, Bold, Borders) 🎨
             for(let R=0; R<sheetData.length; R++) {
                 for(let C=0; C<colCount; C++) {
                     let cellRef = XLSX.utils.encode_cell({r: R, c: C});
-                    if(!ws[cellRef]) continue; // जर रकाना रिकामा असेल तर सोडून द्या
+                    if(!ws[cellRef]) continue; 
 
-                    let cellStyle = {
-                        font: { name: "Arial", sz: 11, color: { rgb: "000000" } },
-                        alignment: { vertical: "center", horizontal: "center" }
-                    };
+                    let cellStyle = { font: { name: "Arial", sz: 11, color: { rgb: "000000" } }, alignment: { vertical: "center", horizontal: "center" } };
 
                     if(R === 0) {
-                        // मुख्य हेडिंग (Dark Green)
                         cellStyle.fill = { fgColor: { rgb: "00705A" } };
                         cellStyle.font = { name: "Arial", sz: 16, bold: true, color: { rgb: "FFFFFF" } };
                     } else if(R === 1) {
-                        // उप-हेडिंग (Light Gray)
                         cellStyle.fill = { fgColor: { rgb: "E9ECEF" } };
                         cellStyle.font = { name: "Arial", sz: 12, bold: true, color: { rgb: "000000" } };
                     } else if(R === 3) {
-                        // टेबल हेडिंग (Yellow / Orange)
                         cellStyle.fill = { fgColor: { rgb: "F4B400" } };
                         cellStyle.font = { name: "Arial", sz: 12, bold: true, color: { rgb: "000000" } };
                         cellStyle.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
                     } else if(R >= 4) {
-                        // डेटा रकाने
-                        if(isNil) {
-                            cellStyle.font = { name: "Arial", sz: 12, bold: true, color: { rgb: "FF0000" } }; // निरंक लाल रंगात
-                        } else {
-                            cellStyle.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
-                        }
+                        if(isNil) { cellStyle.font = { name: "Arial", sz: 12, bold: true, color: { rgb: "FF0000" } }; } 
+                        else { cellStyle.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } }; }
                     }
-
-                    ws[cellRef].s = cellStyle; // तयार केलेली स्टाईल लागू करा
+                    ws[cellRef].s = cellStyle; 
                 }
             }
 
-            // कॉलमची रुंदी (Column Widths)
-            let wscols = [{ wch: 8 }]; // अ.क्र. साठी 8px
-            for(let c=1; c<colCount; c++) wscols.push({ wch: 20 }); // बाकी सर्व रकाने 20px
+            let wscols = [{ wch: 8 }]; 
+            for(let c=1; c<colCount; c++) wscols.push({ wch: 20 }); 
             ws["!cols"] = wscols;
 
             let safeSheetName = rep.formName.replace(/[\\\/\?\*\[\]\:]/g, "").substring(0, 31);
@@ -474,19 +451,15 @@
         XLSX.writeFile(wb, fileName);
     }
 
+    // --- Admin & Data Entry Functions ---
     function clearLocalHistory() {
         if(confirm("जर तुम्ही गुगल शीटमधील जुना डेटा डिलीट केला असेल, तरच हे बटण दाबा. यामुळे लपलेली सर्व गावे पुन्हा दिसू लागतील. तुम्हाला गावे रीसेट करायची आहेत का?")) {
             localStorage.removeItem("submissionHistory"); 
             updateVillageDropdown(); 
-            
             const statusText = document.getElementById('syncStatus');
             statusText.style.color = "#ffc107";
             statusText.innerText = "✅ गावांची यादी यशस्वीरित्या रीसेट झाली आहे!";
-            
-            setTimeout(() => { 
-                statusText.innerText = ""; 
-                statusText.style.color = "green";
-            }, 3000);
+            setTimeout(() => { statusText.innerText = ""; statusText.style.color = "green"; }, 3000);
         }
     }
 
@@ -524,6 +497,23 @@
         JSON.parse(f.StructureJSON).forEach(field => addField(field));
     }
 
+    function toggleFieldOptions(id, val) {
+        document.getElementById('opts_' + id).style.display = (val === 'dropdown' || val === 'sum') ? 'block' : 'none';
+        document.getElementById('group_' + id).style.display = (val === 'group') ? 'block' : 'none';
+        
+        let labelEl = document.querySelector(`#opts_${id} label`);
+        let inputEl = document.querySelector(`#opts_${id} .foptions`);
+        if(labelEl && inputEl) {
+            if(val === 'sum') {
+                labelEl.innerText = "कोणत्या प्रश्नांची बेरीज करायची? (स्वल्पविरामाने अचूक नावे लिहा):";
+                inputEl.placeholder = "उदा. 0-5 वर्षे मुले, 0-5 वर्षे मुली";
+            } else if(val === 'dropdown') {
+                labelEl.innerText = "येथे पर्याय लिहा (स्वल्पविरामाने , वेगळे करा):";
+                inputEl.placeholder = "उदा. होय, नाही";
+            }
+        }
+    }
+
     function addField(data = null) {
         const id = Math.floor(Math.random() * 1000000); 
         const html = `
@@ -537,12 +527,15 @@
                     <option value="text" ${data && data.type==='text'?'selected':''}>Text (साधा मजकूर)</option>
                     <option value="number" ${data && data.type==='number'?'selected':''}>Number (आकडे)</option>
                     <option value="date" ${data && data.type==='date'?'selected':''}>Date (तारीख)</option>
-                    <option value="dropdown" ${data && data.type==='dropdown'?'selected':''}>Dropdown (एकच प्रश्न आणि अनेक पर्याय)</option>
-                    <option value="group" ${data && data.type==='group'?'selected':''}>Group / गट (एकाच नावाखाली अनेक उप-प्रश्न)</option>
+                    <option value="dropdown" ${data && data.type==='dropdown'?'selected':''}>Dropdown (पर्याय)</option>
+                    <option value="group" ${data && data.type==='group'?'selected':''}>Group / गट (उप-प्रश्न)</option>
+                    <option value="sum" ${data && data.type==='sum'?'selected':''}>Total / बेरीज (Auto Sum)</option>
                 </select>
-                <div id="opts_${id}" style="display:${data && data.type==='dropdown' ? 'block' : 'none'}; margin-top:10px; background:#ffe4b5; padding:10px; border-radius:5px;">
-                    <label style="font-size:12px;">येथे पर्याय लिहा (स्वल्पविरामाने , वेगळे करा):</label>
-                    <input type="text" placeholder="उदा. होय, नाही" class="foptions" value="${data ? (data.options || '') : ''}">
+                <div id="opts_${id}" style="display:${data && (data.type==='dropdown' || data.type==='sum') ? 'block' : 'none'}; margin-top:10px; background:#ffe4b5; padding:10px; border-radius:5px;">
+                    <label style="font-size:12px; font-weight:bold; color:#d35400;">
+                        ${data && data.type==='sum' ? 'कोणत्या प्रश्नांची बेरीज करायची? (स्वल्पविरामाने अचूक नावे लिहा):' : 'येथे पर्याय लिहा (स्वल्पविरामाने , वेगळे करा):'}
+                    </label>
+                    <input type="text" placeholder="${data && data.type==='sum' ? 'उदा. 0-5 वर्षे मुले, 0-5 वर्षे मुली' : 'उदा. होय, नाही'}" class="foptions" value="${data ? (data.options || '') : ''}">
                 </div>
                 <div id="group_${id}" style="display:${data && data.type==='group' ? 'block' : 'none'}; margin-top:10px; background:#eef; padding:10px; border-radius:5px; border-left: 3px solid var(--primary);">
                     <label style="font-size:13px; font-weight:bold; color:var(--primary);">या गटातील उप-प्रश्न जोडा:</label>
@@ -553,11 +546,6 @@
         document.getElementById('fieldsList').insertAdjacentHTML('beforeend', html);
         if(data && data.type === 'group' && data.subFields) { data.subFields.forEach(sf => addSubFieldUI(id, sf)); } 
         else if (data && data.type === 'group') { addSubFieldUI(id); }
-    }
-
-    function toggleFieldOptions(id, val) {
-        document.getElementById('opts_' + id).style.display = (val === 'dropdown') ? 'block' : 'none';
-        document.getElementById('group_' + id).style.display = (val === 'group') ? 'block' : 'none';
     }
 
     function addSubFieldUI(parentId, sfData = null) {
@@ -641,6 +629,24 @@
         });
     }
 
+    // --- नवीन: Auto Sum Function ---
+    function calculateAutoSums() {
+        let sumInputs = document.querySelectorAll('input[data-sum-targets]');
+        sumInputs.forEach(sumInput => {
+            let targets = sumInput.getAttribute('data-sum-targets').split(',');
+            let total = 0;
+            targets.forEach(targetLabel => {
+                let tLabel = targetLabel.trim();
+                let targetElement = document.querySelector(`[data-label="${tLabel}"]`);
+                if(targetElement && targetElement.value) {
+                    let val = parseFloat(targetElement.value);
+                    if(!isNaN(val)) total += val;
+                }
+            });
+            sumInput.value = total > 0 ? total : ""; 
+        });
+    }
+
     function loadDynamicFields() {
         const fId = document.getElementById('selForm').value;
         const area = document.getElementById('dynamicFormArea');
@@ -649,27 +655,35 @@
         if(!f) return;
         
         JSON.parse(f.StructureJSON).forEach((field, i) => {
+            let exactLabel = field.label;
+            
             if (field.type === 'group') {
                 let html = `<div style="margin-bottom:15px; background:#fffaf0; padding:12px; border-radius:8px; border:1px solid #f5b041;">
                             <h4 style="margin-top:0; color:var(--primary); text-align:left; border-bottom:1px solid #ccc; padding-bottom:5px;">${field.label}</h4>`;
                 field.subFields.forEach((sf, j) => {
+                    let exactSubLabel = `${field.label} - ${sf.label}`;
                     html += `<div style="margin-bottom:10px;"><label style="font-size:14px; color:#555;"><b>${sf.label}:</b></label>`;
                     if (sf.type === 'dropdown') {
-                        html += `<select id="inp_${i}_${j}"><option value="">-- निवडा --</option>`;
+                        html += `<select id="inp_${i}_${j}" data-label="${exactSubLabel}" onchange="calculateAutoSums()"><option value="">-- निवडा --</option>`;
                         if(sf.options) { sf.options.split(',').forEach(opt => { let o = opt.trim(); if(o) html += `<option value="${o}">${o}</option>`; }); }
                         html += `</select>`;
-                    } else { html += `<input type="text" id="inp_${i}_${j}">`; }
+                    } else { html += `<input type="text" id="inp_${i}_${j}" data-label="${exactSubLabel}" oninput="calculateAutoSums()">`; }
                     html += `</div>`;
                 });
                 html += `</div>`;
                 area.innerHTML += html;
             } else {
                 let html = `<div style="margin-bottom:15px; background:white; padding:10px; border-radius:8px; border:1px solid #ddd;"><label><b>${field.label}:</b></label>`;
+                
                 if(field.type === 'dropdown') {
-                    html += `<select id="inp_${i}"><option value="">-- निवडा --</option>`;
+                    html += `<select id="inp_${i}" data-label="${exactLabel}" onchange="calculateAutoSums()"><option value="">-- निवडा --</option>`;
                     if(field.options) { field.options.split(',').forEach(opt => { let o = opt.trim(); if(o) html += `<option value="${o}">${o}</option>`; }); }
                     html += `</select>`;
-                } else { html += `<input type="${field.type}" id="inp_${i}">`; }
+                } else if(field.type === 'sum') {
+                    html += `<input type="number" id="inp_${i}" data-label="${exactLabel}" data-sum-targets="${field.options}" readonly style="background:#e9ecef; font-weight:bold; color:var(--primary); cursor:not-allowed;" placeholder="Auto Sum">`;
+                } else { 
+                    html += `<input type="${field.type}" id="inp_${i}" data-label="${exactLabel}" oninput="calculateAutoSums()">`; 
+                }
                 area.innerHTML += html + `</div>`;
             }
         });
