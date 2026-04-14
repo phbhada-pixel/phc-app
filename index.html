@@ -18,7 +18,7 @@
         .online { background: #d4edda; color: #155724; }
         .edit-row { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 5px; }
         .btn-edit { background: orange; color: white; border: none; width: auto; padding: 5px 15px; border-radius: 4px; }
-        .btn-remove { background: #ff4d4d; color: white; padding: 4px; font-size: 12px; border: none; width: auto; float: right; border-radius: 4px; }
+        .btn-remove { background: #ff4d4d; color: white; padding: 4px 8px; font-size: 12px; border: none; width: auto; float: right; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .btn-logout { background: #dc3545; color: white; padding: 6px 12px; font-size: 14px; border: none; border-radius: 4px; cursor: pointer; width: auto; }
     </style>
@@ -188,9 +188,10 @@
         const id = Math.floor(Math.random() * 1000000); 
         const html = `
             <div class="field-card" id="f_${id}">
-                <button class="btn-remove" onclick="this.parentElement.remove()">X</button>
-                <div style="display:flex; gap:5px;">
-                    <input type="text" placeholder="मुख्य प्रश्नाचे नाव (उदा. ब्लिचिंग पावडर)" class="fname" style="flex:2; font-weight:bold;" value="${data ? data.label : ''}">
+                <button type="button" class="btn-remove" onclick="this.parentElement.remove()">X</button>
+                <div style="display:flex; flex-direction:column; gap:5px; margin-top: 15px;">
+                    <label style="font-size:14px; color:#555;">मुख्य प्रश्नाचे नाव:</label>
+                    <input type="text" placeholder="उदा. ब्लिचिंग पावडर" class="fname" style="width:100%;" value="${data ? data.label : ''}">
                 </div>
                 
                 <select class="ftype" onchange="toggleFieldOptions('${id}', this.value)" style="margin-top:10px; background:#f0f8ff;">
@@ -209,7 +210,7 @@
                 <div id="group_${id}" style="display:${data && data.type==='group' ? 'block' : 'none'}; margin-top:10px; background:#eef; padding:10px; border-radius:5px; border-left: 3px solid var(--primary);">
                     <label style="font-size:13px; font-weight:bold; color:var(--primary);">या गटातील उप-प्रश्न जोडा:</label>
                     <div id="subfields_container_${id}"></div>
-                    <button type="button" onclick="addSubFieldUI('${id}')" style="margin-top:10px; font-size:13px; background:#fff; border:1px solid #ccc; padding:6px; cursor:pointer;">+ उप-प्रश्न जोडा</button>
+                    <button type="button" onclick="addSubFieldUI('${id}')" style="margin-top:10px; font-size:13px; background:#fff; border:1px solid #ccc; padding:6px; cursor:pointer; width:100%;">+ उप-प्रश्न जोडा</button>
                 </div>
             </div>`;
         document.getElementById('fieldsList').insertAdjacentHTML('beforeend', html);
@@ -226,23 +227,22 @@
         document.getElementById('group_' + id).style.display = (val === 'group') ? 'block' : 'none';
     }
 
-    // सुधारित 'addSubFieldUI' (Flexbox आणि UI Fix सह)
+    // मोबाइलसाठी खास दुरुस्त केलेले 'Vertical' लेआऊट आणि छोटे 'X' बटण 
     function addSubFieldUI(parentId, sfData = null) {
         const sfId = Math.floor(Math.random() * 1000000);
         const html = `
-            <div class="sub-field-item" id="sf_${sfId}" style="display:flex; flex-direction:column; gap:5px; background:#fff; padding:8px; border-radius:5px; border:1px solid #ddd; margin-top:8px;">
-                <div style="display:flex; gap:8px; width:100%; align-items:center;">
-                    <input type="text" placeholder="उप-प्रश्नाचे नाव (उदा. उपलब्धता)" class="sfname" style="flex: 1; padding: 10px; min-width: 0;" value="${sfData ? sfData.label : ''}">
-                    
-                    <select class="sftype" style="width: auto; padding: 10px; flex-shrink: 0;" onchange="document.getElementById('sfopts_${sfId}').style.display = this.value==='dropdown' ? 'block' : 'none'">
-                        <option value="text" ${sfData && sfData.type==='text'?'selected':''}>Text</option>
-                        <option value="dropdown" ${sfData && sfData.type==='dropdown'?'selected':''}>Dropdown</option>
-                    </select>
-                    
-                    <button type="button" onclick="this.parentElement.parentElement.remove()" style="background:#ff4d4d; color:white; border:none; border-radius:4px; padding:10px 12px; font-weight:bold; flex-shrink: 0; cursor:pointer;">X</button>
-                </div>
+            <div class="sub-field-item" id="sf_${sfId}" style="position: relative; display: flex; flex-direction: column; gap: 8px; background: #fff; padding: 12px; padding-top: 25px; border-radius: 5px; border: 1px solid #ccc; margin-top: 10px;">
                 
-                <input type="text" id="sfopts_${sfId}" placeholder="पर्याय लिहा (स्वल्पविरामाने वेगळे करा)" class="sfopts" style="margin-top:5px; width:100%; padding:10px; display:${sfData && sfData.type==='dropdown'?'block':'none'}" value="${sfData ? (sfData.options || '') : ''}">
+                <button type="button" class="btn-remove" onclick="this.parentElement.remove()" style="position: absolute; top: 5px; right: 5px;">X</button>
+                
+                <input type="text" placeholder="उप-प्रश्नाचे नाव (उदा. उपलब्धता)" class="sfname" style="width: 100%;" value="${sfData ? sfData.label : ''}">
+                
+                <select class="sftype" style="width: 100%;" onchange="document.getElementById('sfopts_${sfId}').style.display = this.value==='dropdown' ? 'block' : 'none'">
+                    <option value="text" ${sfData && sfData.type==='text'?'selected':''}>Text (मजकूर)</option>
+                    <option value="dropdown" ${sfData && sfData.type==='dropdown'?'selected':''}>Dropdown (पर्याय)</option>
+                </select>
+                
+                <input type="text" id="sfopts_${sfId}" placeholder="पर्याय लिहा (स्वल्पविरामाने वेगळे करा)" class="sfopts" style="width: 100%; margin-top: 5px; display:${sfData && sfData.type==='dropdown'?'block':'none'}" value="${sfData ? (sfData.options || '') : ''}">
             </div>
         `;
         document.getElementById('subfields_container_' + parentId).insertAdjacentHTML('beforeend', html);
