@@ -16,7 +16,27 @@
         .btn-primary { background: var(--primary); color: white; font-weight: bold; border: none; cursor: pointer; }
         .btn-admin { background: #6c757d; color: white; border: none; cursor: pointer; }
         .btn-report { background: #17a2b8; color: white; border: none; cursor: pointer; font-weight: bold; }
-        .field-card { border: 2px solid #ccc; padding: 15px; margin: 10px 0; border-radius: 8px; background: #fafafa; position: relative; }
+        
+        /* दुरुस्त केलेले डिझाईन: फील्ड कार्ड आणि लाल डिलीट बटण */
+        .field-card { border: 2px solid #ccc; padding: 15px; padding-top: 45px; margin: 10px 0; border-radius: 8px; background: #fafafa; position: relative; }
+        .sub-field-item { position: relative; display: flex; flex-direction: column; gap: 8px; background: #fff; padding: 12px; padding-top: 40px; border-radius: 5px; border: 1px solid #ccc; margin-top: 10px; }
+        
+        .btn-remove { 
+            background: #ff4d4d !important; 
+            color: white !important; 
+            padding: 6px 12px !important; 
+            font-size: 13px !important; 
+            border: none !important; 
+            width: auto !important; 
+            border-radius: 4px !important; 
+            font-weight: bold !important; 
+            cursor: pointer !important; 
+            position: absolute !important; 
+            top: 8px !important; 
+            right: 8px !important; 
+            margin: 0 !important; 
+        }
+
         .hidden { display: none !important; }
         .status-bar { padding: 10px; text-align: center; font-weight: bold; border-radius: 5px; margin-bottom: 15px; }
         .online { background: #d4edda; color: #155724; }
@@ -98,7 +118,7 @@
                 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 10px;">
                     <label style="margin:0;">गाव निवडा:</label>
-                    <button onclick="clearLocalHistory()" style="background:#ffc107; color:#000; border:none; padding:5px 10px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer;">
+                    <button onclick="clearLocalHistory()" style="background:#ffc107; color:#000; border:none; padding:5px 10px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer; width:auto;">
                         🔄 गावे रीसेट करा
                     </button>
                 </div>
@@ -271,7 +291,6 @@
         });
     }
 
-    // --- Report Fetch Logic ---
     async function fetchReportData() {
         const formID = document.getElementById('reportFormSelect').value;
         const selMonth = document.getElementById('reportMonth').value;
@@ -356,7 +375,6 @@
         container.innerHTML = html;
     }
 
-    // --- Excel (.xlsx) Download Logic ---
     function downloadConsolidatedExcel() {
         if(currentReports.length === 0) return;
         
@@ -451,7 +469,23 @@
         XLSX.writeFile(wb, fileName);
     }
 
-    // --- Admin & Data Entry Functions ---
+    function calculateAutoSums() {
+        let sumInputs = document.querySelectorAll('input[data-sum-targets]');
+        sumInputs.forEach(sumInput => {
+            let targets = sumInput.getAttribute('data-sum-targets').split(',');
+            let total = 0;
+            targets.forEach(targetLabel => {
+                let tLabel = targetLabel.trim();
+                let targetElement = document.querySelector(`[data-label="${tLabel}"]`);
+                if(targetElement && targetElement.value) {
+                    let val = parseFloat(targetElement.value);
+                    if(!isNaN(val)) total += val;
+                }
+            });
+            sumInput.value = total > 0 ? total : ""; 
+        });
+    }
+
     function clearLocalHistory() {
         if(confirm("जर तुम्ही गुगल शीटमधील जुना डेटा डिलीट केला असेल, तरच हे बटण दाबा. यामुळे लपलेली सर्व गावे पुन्हा दिसू लागतील. तुम्हाला गावे रीसेट करायची आहेत का?")) {
             localStorage.removeItem("submissionHistory"); 
@@ -519,9 +553,9 @@
         const html = `
             <div class="field-card" id="f_${id}">
                 <button type="button" class="btn-remove" onclick="this.parentElement.remove()">X</button>
-                <div style="display:flex; flex-direction:column; gap:5px; margin-top: 15px;">
-                    <label style="font-size:14px; color:#555;">मुख्य प्रश्नाचे नाव:</label>
-                    <input type="text" placeholder="उदा. ब्लिचिंग पावडर" class="fname" style="width:100%;" value="${data ? data.label : ''}">
+                <div style="display:flex; flex-direction:column; gap:5px; margin-top: 5px;">
+                    <label style="font-size:14px; color:#555; font-weight:bold;">मुख्य प्रश्नाचे नाव:</label>
+                    <input type="text" placeholder="उदा. ब्लिचिंग पावडर" class="fname" style="width:100%; margin-top:0;" value="${data ? data.label : ''}">
                 </div>
                 <select class="ftype" onchange="toggleFieldOptions('${id}', this.value)" style="margin-top:10px; background:#f0f8ff;">
                     <option value="text" ${data && data.type==='text'?'selected':''}>Text (साधा मजकूर)</option>
@@ -551,9 +585,9 @@
     function addSubFieldUI(parentId, sfData = null) {
         const sfId = Math.floor(Math.random() * 1000000);
         const html = `
-            <div class="sub-field-item" id="sf_${sfId}" style="position: relative; display: flex; flex-direction: column; gap: 8px; background: #fff; padding: 12px; padding-top: 25px; border-radius: 5px; border: 1px solid #ccc; margin-top: 10px;">
-                <button type="button" class="btn-remove" onclick="this.parentElement.remove()" style="position: absolute; top: 5px; right: 5px;">X</button>
-                <input type="text" placeholder="उप-प्रश्नाचे नाव" class="sfname" style="width: 100%;" value="${sfData ? sfData.label : ''}">
+            <div class="sub-field-item" id="sf_${sfId}">
+                <button type="button" class="btn-remove" onclick="this.parentElement.remove()">X</button>
+                <input type="text" placeholder="उप-प्रश्नाचे नाव" class="sfname" style="width: 100%; margin-top: 5px;" value="${sfData ? sfData.label : ''}">
                 <select class="sftype" style="width: 100%;" onchange="document.getElementById('sfopts_${sfId}').style.display = this.value==='dropdown' ? 'block' : 'none'">
                     <option value="text" ${sfData && sfData.type==='text'?'selected':''}>Text (मजकूर)</option>
                     <option value="dropdown" ${sfData && sfData.type==='dropdown'?'selected':''}>Dropdown (पर्याय)</option>
@@ -629,24 +663,6 @@
         });
     }
 
-    // --- नवीन: Auto Sum Function ---
-    function calculateAutoSums() {
-        let sumInputs = document.querySelectorAll('input[data-sum-targets]');
-        sumInputs.forEach(sumInput => {
-            let targets = sumInput.getAttribute('data-sum-targets').split(',');
-            let total = 0;
-            targets.forEach(targetLabel => {
-                let tLabel = targetLabel.trim();
-                let targetElement = document.querySelector(`[data-label="${tLabel}"]`);
-                if(targetElement && targetElement.value) {
-                    let val = parseFloat(targetElement.value);
-                    if(!isNaN(val)) total += val;
-                }
-            });
-            sumInput.value = total > 0 ? total : ""; 
-        });
-    }
-
     function loadDynamicFields() {
         const fId = document.getElementById('selForm').value;
         const area = document.getElementById('dynamicFormArea');
@@ -667,7 +683,7 @@
                         html += `<select id="inp_${i}_${j}" data-label="${exactSubLabel}" onchange="calculateAutoSums()"><option value="">-- निवडा --</option>`;
                         if(sf.options) { sf.options.split(',').forEach(opt => { let o = opt.trim(); if(o) html += `<option value="${o}">${o}</option>`; }); }
                         html += `</select>`;
-                    } else { html += `<input type="text" id="inp_${i}_${j}" data-label="${exactSubLabel}" oninput="calculateAutoSums()">`; }
+                    } else { html += `<input type="number" id="inp_${i}_${j}" data-label="${exactSubLabel}" oninput="calculateAutoSums()">`; }
                     html += `</div>`;
                 });
                 html += `</div>`;
@@ -681,8 +697,10 @@
                     html += `</select>`;
                 } else if(field.type === 'sum') {
                     html += `<input type="number" id="inp_${i}" data-label="${exactLabel}" data-sum-targets="${field.options}" readonly style="background:#e9ecef; font-weight:bold; color:var(--primary); cursor:not-allowed;" placeholder="Auto Sum">`;
-                } else { 
-                    html += `<input type="${field.type}" id="inp_${i}" data-label="${exactLabel}" oninput="calculateAutoSums()">`; 
+                } else if(field.type === 'number') { 
+                    html += `<input type="number" id="inp_${i}" data-label="${exactLabel}" oninput="calculateAutoSums()">`; 
+                } else {
+                    html += `<input type="${field.type}" id="inp_${i}" data-label="${exactLabel}">`; 
                 }
                 area.innerHTML += html + `</div>`;
             }
