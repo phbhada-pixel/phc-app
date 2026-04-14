@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PHC Advance Management</title>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
     <style>
         :root { --primary: #00705a; --secondary: #0056b3; --bg: #f4f7f6; }
@@ -108,7 +108,7 @@
                 
                 <button class="btn-primary" onclick="saveDataLocal()" style="margin-top:20px;">माहिती जतन करा</button>
                 <button onclick="syncDataToServer()" style="background:#28a745; color:white;">Cloud Sync</button>
-                <p id="syncStatus" style="text-align:center; font-size:14px; color:green; font-weight:bold;"></p>
+                <p id="syncStatus" style="text-align:center; font-size:14px; font-weight:bold; margin-top: 10px;"></p>
             </div>
 
             <div id="reportsSection" class="hidden">
@@ -271,7 +271,6 @@
         });
     }
 
-    // --- Report Section ---
     async function fetchReportData() {
         const formID = document.getElementById('reportFormSelect').value;
         const selMonth = document.getElementById('reportMonth').value;
@@ -358,55 +357,123 @@
         container.innerHTML = html;
     }
 
-    // --- खरा Excel (.xlsx) तयार करणारी कार्यपद्धती (SheetJS) ---
+    // --- Excel (.xlsx) तयार करण्याची आणि डिझाईन (Style) देण्याची प्रगत पद्धत ---
     function downloadConsolidatedExcel() {
         if(currentReports.length === 0) return;
         
         let month = document.getElementById('reportMonth').value;
         let year = document.getElementById('reportYear').value;
         let periodText = (month === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${month} ${year}`;
-        let mainTitle = document.getElementById('reportFormSelect').value === "ALL" ? "एकत्रित मासिक अहवाल" : currentReports[0].formName + " अहवाल";
         
-        let excelData = [];
-        
-        excelData.push([mainTitle]);
-        excelData.push([`उपकेंद्र: ${user.subcenter}   |   अहवाल महिना: ${periodText}`]);
-        excelData.push([]); 
+        let wb = XLSX.utils.book_new();
 
-        currentReports.forEach(rep => {
+        currentReports.forEach((rep, index) => {
             let data = rep.data;
             let headers = data[0];
             let showIndices = [];
             headers.forEach((h, i) => { if(!hiddenColumns.includes(h)) showIndices.push(i); });
+            let colCount = showIndices.length + 1; // +1 for Sr. No.
 
-            excelData.push([`फॉर्म: ${rep.formName}`]); 
+            let sheetData = [];
             
+            // १. पहिली ओळ: अहवालाचे नाव (Merge & Style)
+            let titleRow = Array(colCount).fill("");
+            titleRow[0] = `${rep.formName} अहवाल`;
+            sheetData.push(titleRow);
+            
+            // २. दुसरी ओळ: उपकेंद्र आणि महिना (Merge & Style)
+            let subTitleRow = Array(colCount).fill("");
+            subTitleRow[0] = `उपकेंद्र: ${user.subcenter}   |   अहवाल महिना: ${periodText}`;
+            sheetData.push(subTitleRow);
+            
+            // ३. तिसरी ओळ: रिकामी
+            sheetData.push(Array(colCount).fill(""));
+
+            // ४. चौथी ओळ: टेबलचे हेडिंग्ज (Borders, Colors)
             let headerRow = ["अ.क्र."];
             showIndices.forEach(idx => headerRow.push(headers[idx]));
-            excelData.push(headerRow);
+            sheetData.push(headerRow);
 
+            // ५. टेबलचा डेटा
+            let isNil = false;
             if(data.length === 1) {
-                excelData.push(["निरंक (Nil)"]);
+                isNil = true;
+                let nilRow = Array(colCount).fill("");
+                nilRow[0] = "निरंक (Nil)";
+                sheetData.push(nilRow);
             } else {
                 for(let i=1; i<data.length; i++) {
                     let rowData = [i];
                     showIndices.forEach(idx => rowData.push(data[i][idx] || "-"));
-                    excelData.push(rowData);
+                    sheetData.push(rowData);
                 }
             }
-            excelData.push([]); 
-            excelData.push([]);
-        });
 
-        let wb = XLSX.utils.book_new();
-        let ws = XLSX.utils.aoa_to_sheet(excelData);
-        XLSX.utils.book_append_sheet(wb, ws, "Reports");
+            // Worksheet बनवणे
+            let ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+            // 🌟 मर्ज करण्याची सोय (Merge Cells) 🌟
+            ws["!merges"] = [
+                { s: { r: 0, c: 0 }, e: { r: 0, c: colCount - 1 } }, // पहिल्या ओळीचे रकाने एकत्र करणे
+                { s: { r: 1, c: 0 }, e: { r: 1, c: colCount - 1 } }  // दुसऱ्या ओळीचे रकाने एकत्र करणे
+            ];
+            
+            if(isNil) {
+                ws["!merges"].push({ s: { r: 4, c: 0 }, e: { r: 4, c: colCount - 1 } }); // 'निरंक' साठी रकाने एकत्र करणे
+            }
+
+            // 🎨 कलर्स आणि स्टाईल्स (Colors, Bold, Borders) 🎨
+            for(let R=0; R<sheetData.length; R++) {
+                for(let C=0; C<colCount; C++) {
+                    let cellRef = XLSX.utils.encode_cell({r: R, c: C});
+                    if(!ws[cellRef]) continue; // जर रकाना रिकामा असेल तर सोडून द्या
+
+                    let cellStyle = {
+                        font: { name: "Arial", sz: 11, color: { rgb: "000000" } },
+                        alignment: { vertical: "center", horizontal: "center" }
+                    };
+
+                    if(R === 0) {
+                        // मुख्य हेडिंग (Dark Green)
+                        cellStyle.fill = { fgColor: { rgb: "00705A" } };
+                        cellStyle.font = { name: "Arial", sz: 16, bold: true, color: { rgb: "FFFFFF" } };
+                    } else if(R === 1) {
+                        // उप-हेडिंग (Light Gray)
+                        cellStyle.fill = { fgColor: { rgb: "E9ECEF" } };
+                        cellStyle.font = { name: "Arial", sz: 12, bold: true, color: { rgb: "000000" } };
+                    } else if(R === 3) {
+                        // टेबल हेडिंग (Yellow / Orange)
+                        cellStyle.fill = { fgColor: { rgb: "F4B400" } };
+                        cellStyle.font = { name: "Arial", sz: 12, bold: true, color: { rgb: "000000" } };
+                        cellStyle.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+                    } else if(R >= 4) {
+                        // डेटा रकाने
+                        if(isNil) {
+                            cellStyle.font = { name: "Arial", sz: 12, bold: true, color: { rgb: "FF0000" } }; // निरंक लाल रंगात
+                        } else {
+                            cellStyle.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+                        }
+                    }
+
+                    ws[cellRef].s = cellStyle; // तयार केलेली स्टाईल लागू करा
+                }
+            }
+
+            // कॉलमची रुंदी (Column Widths)
+            let wscols = [{ wch: 8 }]; // अ.क्र. साठी 8px
+            for(let c=1; c<colCount; c++) wscols.push({ wch: 20 }); // बाकी सर्व रकाने 20px
+            ws["!cols"] = wscols;
+
+            let safeSheetName = rep.formName.replace(/[\\\/\?\*\[\]\:]/g, "").substring(0, 31);
+            if(!safeSheetName) safeSheetName = "Sheet" + (index + 1);
+            
+            XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
+        });
 
         let fileName = `मासिक_अहवाल_${user.subcenter}_${periodText}.xlsx`;
         XLSX.writeFile(wb, fileName);
     }
 
-    // --- Admin & Data Entry Section ---
     function clearLocalHistory() {
         if(confirm("जर तुम्ही गुगल शीटमधील जुना डेटा डिलीट केला असेल, तरच हे बटण दाबा. यामुळे लपलेली सर्व गावे पुन्हा दिसू लागतील. तुम्हाला गावे रीसेट करायची आहेत का?")) {
             localStorage.removeItem("submissionHistory"); 
@@ -480,7 +547,7 @@
                 <div id="group_${id}" style="display:${data && data.type==='group' ? 'block' : 'none'}; margin-top:10px; background:#eef; padding:10px; border-radius:5px; border-left: 3px solid var(--primary);">
                     <label style="font-size:13px; font-weight:bold; color:var(--primary);">या गटातील उप-प्रश्न जोडा:</label>
                     <div id="subfields_container_${id}"></div>
-                    <button type="button" onclick="addSubFieldUI('${id}')" style="margin-top:10px; font-size:13px; background:#fff; border:1px solid #ccc; padding:6px; cursor:pointer; width:100%;">+ उप-प्रश्न جوडा</button>
+                    <button type="button" onclick="addSubFieldUI('${id}')" style="margin-top:10px; font-size:13px; background:#fff; border:1px solid #ccc; padding:6px; cursor:pointer; width:100%;">+ उप-प्रश्न जोडा</button>
                 </div>
             </div>`;
         document.getElementById('fieldsList').insertAdjacentHTML('beforeend', html);
@@ -635,8 +702,11 @@
         history.push({formID: fId, village: vName, month: month, year: year});
         localStorage.setItem("submissionHistory", JSON.stringify(history));
 
-        document.getElementById('syncStatus').innerText = "रेकॉर्ड सेव्ह झाला! लगेच पुढील गावाची माहिती भरा.";
-        setTimeout(() => document.getElementById('syncStatus').innerText = "", 3000);
+        const statusText = document.getElementById('syncStatus');
+        statusText.style.color = "green";
+        statusText.innerText = "रेकॉर्ड सेव्ह झाला! लगेच पुढील गावाची माहिती भरा.";
+        setTimeout(() => statusText.innerText = "", 3000);
+        
         updateVillageDropdown(); 
         loadDynamicFields(); 
     }
@@ -644,17 +714,24 @@
     async function syncDataToServer() {
         let q = JSON.parse(localStorage.getItem("syncQueue") || "[]");
         if(q.length === 0) { alert("सर्व्हरवर पाठवण्यासाठी नवीन डेटा नाही."); return; }
-        document.getElementById('syncStatus').innerText = "डेटा पाठवत आहे...";
+        const statusText = document.getElementById('syncStatus');
+        statusText.style.color = "orange";
+        statusText.innerText = "डेटा पाठवत आहे...";
         try {
             const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"syncData", payload: q}) });
             const d = await r.json();
             if(d.success) { 
                 localStorage.setItem("syncQueue", "[]"); 
-                alert("ऑनलाइन अपडेट यशस्वी!"); 
-                document.getElementById('syncStatus').innerText = ""; 
+                statusText.style.color = "green";
+                statusText.innerText = "✅ ऑनलाइन अपडेट यशस्वी!"; 
+                setTimeout(() => statusText.innerText = "", 3000);
                 fetchData(); 
             }
-        } catch(e) { alert("एरर आला. इंटरनेट तपासा."); }
+        } catch(e) { 
+            statusText.style.color = "red";
+            statusText.innerText = "एरर आला. इंटरनेट तपासा.";
+            setTimeout(() => statusText.innerText = "", 3000);
+        }
     }
 </script>
 </body>
