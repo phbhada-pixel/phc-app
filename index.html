@@ -17,9 +17,8 @@
         .btn-admin { background: #6c757d; color: white; border: none; cursor: pointer; }
         .btn-report { background: #17a2b8; color: white; border: none; cursor: pointer; font-weight: bold; }
         
-        /* दुरुस्त केलेले डिझाईन: फील्ड कार्ड आणि लाल डिलीट बटण */
         .field-card { border: 2px solid #ccc; padding: 15px; padding-top: 45px; margin: 10px 0; border-radius: 8px; background: #fafafa; position: relative; }
-        .sub-field-item { position: relative; display: flex; flex-direction: column; gap: 8px; background: #fff; padding: 12px; padding-top: 40px; border-radius: 5px; border: 1px solid #ccc; margin-top: 10px; }
+        .sub-field-item { position: relative; display: flex; flex-direction: column; gap: 5px; background: #fff; padding: 12px; padding-top: 40px; border-radius: 5px; border: 1px solid #ccc; margin-top: 10px; }
         
         .btn-remove { 
             background: #ff4d4d !important; 
@@ -381,7 +380,6 @@
         let month = document.getElementById('reportMonth').value;
         let year = document.getElementById('reportYear').value;
         let periodText = (month === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${month} ${year}`;
-        
         let wb = XLSX.utils.book_new();
 
         currentReports.forEach((rep, index) => {
@@ -392,7 +390,6 @@
             let colCount = showIndices.length + 1; 
 
             let sheetData = [];
-            
             let titleRow = Array(colCount).fill("");
             titleRow[0] = `${rep.formName} अहवाल`;
             sheetData.push(titleRow);
@@ -548,6 +545,22 @@
         }
     }
 
+    function toggleSubFieldOptions(sfId, val) {
+        let container = document.getElementById(`sfopts_container_${sfId}`);
+        let labelEl = document.getElementById(`sflabel_${sfId}`);
+        let inputEl = document.getElementById(`sfopts_${sfId}`);
+        
+        container.style.display = (val === 'dropdown' || val === 'sum') ? 'block' : 'none';
+        
+        if(val === 'sum') {
+            labelEl.innerText = "कोणत्या प्रश्नांची बेरीज करायची? (उदा. मुख्य प्रश्न - उपप्रश्न):";
+            inputEl.placeholder = "उदा. रुग्ण - पुरुष, रुग्ण - स्त्री";
+        } else if(val === 'dropdown') {
+            labelEl.innerText = "पर्याय लिहा (स्वल्पविरामाने वेगळे करा):";
+            inputEl.placeholder = "उदा. होय, नाही";
+        }
+    }
+
     function addField(data = null) {
         const id = Math.floor(Math.random() * 1000000); 
         const html = `
@@ -588,11 +601,21 @@
             <div class="sub-field-item" id="sf_${sfId}">
                 <button type="button" class="btn-remove" onclick="this.parentElement.remove()">X</button>
                 <input type="text" placeholder="उप-प्रश्नाचे नाव" class="sfname" style="width: 100%; margin-top: 5px;" value="${sfData ? sfData.label : ''}">
-                <select class="sftype" style="width: 100%;" onchange="document.getElementById('sfopts_${sfId}').style.display = this.value==='dropdown' ? 'block' : 'none'">
+                
+                <select class="sftype" style="width: 100%; margin-top: 5px;" onchange="toggleSubFieldOptions('${sfId}', this.value)">
                     <option value="text" ${sfData && sfData.type==='text'?'selected':''}>Text (मजकूर)</option>
+                    <option value="number" ${sfData && sfData.type==='number'?'selected':''}>Number (आकडे)</option>
+                    <option value="date" ${sfData && sfData.type==='date'?'selected':''}>Date (तारीख)</option>
                     <option value="dropdown" ${sfData && sfData.type==='dropdown'?'selected':''}>Dropdown (पर्याय)</option>
+                    <option value="sum" ${sfData && sfData.type==='sum'?'selected':''}>Total / बेरीज (Auto Sum)</option>
                 </select>
-                <input type="text" id="sfopts_${sfId}" placeholder="पर्याय लिहा" class="sfopts" style="width: 100%; margin-top: 5px; display:${sfData && sfData.type==='dropdown'?'block':'none'}" value="${sfData ? (sfData.options || '') : ''}">
+                
+                <div id="sfopts_container_${sfId}" style="display:${sfData && (sfData.type==='dropdown' || sfData.type==='sum') ? 'block' : 'none'}; margin-top: 5px; background:#fff3e0; padding:8px; border-radius:4px;">
+                    <label id="sflabel_${sfId}" style="font-size:11px; font-weight:bold; color:#d35400;">
+                        ${sfData && sfData.type==='sum' ? 'कोणत्या प्रश्नांची बेरीज करायची? (उदा. मुख्य प्रश्न - उपप्रश्न):' : 'पर्याय लिहा (स्वल्पविरामाने वेगळे करा):'}
+                    </label>
+                    <input type="text" id="sfopts_${sfId}" placeholder="${sfData && sfData.type==='sum' ? 'उदा. रुग्ण - पुरुष, रुग्ण - स्त्री' : 'उदा. होय, नाही'}" class="sfopts" style="width: 100%; margin-top: 2px;" value="${sfData ? (sfData.options || '') : ''}">
+                </div>
             </div>
         `;
         document.getElementById('subfields_container_' + parentId).insertAdjacentHTML('beforeend', html);
@@ -683,7 +706,15 @@
                         html += `<select id="inp_${i}_${j}" data-label="${exactSubLabel}" onchange="calculateAutoSums()"><option value="">-- निवडा --</option>`;
                         if(sf.options) { sf.options.split(',').forEach(opt => { let o = opt.trim(); if(o) html += `<option value="${o}">${o}</option>`; }); }
                         html += `</select>`;
-                    } else { html += `<input type="number" id="inp_${i}_${j}" data-label="${exactSubLabel}" oninput="calculateAutoSums()">`; }
+                    } else if(sf.type === 'sum') {
+                        html += `<input type="number" id="inp_${i}_${j}" data-label="${exactSubLabel}" data-sum-targets="${sf.options}" readonly style="background:#e9ecef; font-weight:bold; color:var(--primary); cursor:not-allowed;" placeholder="Auto Sum">`;
+                    } else if(sf.type === 'number') {
+                        html += `<input type="number" id="inp_${i}_${j}" data-label="${exactSubLabel}" oninput="calculateAutoSums()">`;
+                    } else if(sf.type === 'date') {
+                        html += `<input type="date" id="inp_${i}_${j}" data-label="${exactSubLabel}" onchange="calculateAutoSums()">`;
+                    } else { 
+                        html += `<input type="text" id="inp_${i}_${j}" data-label="${exactSubLabel}" oninput="calculateAutoSums()">`; 
+                    }
                     html += `</div>`;
                 });
                 html += `</div>`;
@@ -699,8 +730,10 @@
                     html += `<input type="number" id="inp_${i}" data-label="${exactLabel}" data-sum-targets="${field.options}" readonly style="background:#e9ecef; font-weight:bold; color:var(--primary); cursor:not-allowed;" placeholder="Auto Sum">`;
                 } else if(field.type === 'number') { 
                     html += `<input type="number" id="inp_${i}" data-label="${exactLabel}" oninput="calculateAutoSums()">`; 
+                } else if(field.type === 'date') { 
+                    html += `<input type="date" id="inp_${i}" data-label="${exactLabel}" onchange="calculateAutoSums()">`; 
                 } else {
-                    html += `<input type="${field.type}" id="inp_${i}" data-label="${exactLabel}">`; 
+                    html += `<input type="${field.type}" id="inp_${i}" data-label="${exactLabel}" oninput="calculateAutoSums()">`; 
                 }
                 area.innerHTML += html + `</div>`;
             }
