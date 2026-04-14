@@ -12,15 +12,16 @@
         input, select, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; }
         .btn-primary { background: var(--primary); color: white; font-weight: bold; border: none; cursor: pointer; }
         .btn-admin { background: #6c757d; color: white; border: none; cursor: pointer; }
-        .field-card { border: 1px dashed #aaa; padding: 15px; margin: 10px 0; border-radius: 8px; background: #fafafa; position: relative; }
+        .field-card { border: 2px solid #ccc; padding: 15px; margin: 10px 0; border-radius: 8px; background: #fafafa; position: relative; }
         .hidden { display: none !important; }
         .status-bar { padding: 10px; text-align: center; font-weight: bold; border-radius: 5px; margin-bottom: 15px; }
         .online { background: #d4edda; color: #155724; }
         .edit-row { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 5px; }
         .btn-edit { background: orange; color: white; border: none; width: auto; padding: 5px 15px; border-radius: 4px; }
-        .btn-remove { background: #ff4d4d; color: white; padding: 4px; font-size: 12px; border: none; width: auto; float: right; }
+        .btn-remove { background: #ff4d4d; color: white; padding: 4px; font-size: 12px; border: none; width: auto; float: right; border-radius: 4px; }
         .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .btn-logout { background: #dc3545; color: white; padding: 6px 12px; font-size: 14px; border: none; border-radius: 4px; cursor: pointer; width: auto; }
+        .sub-field-item { display: flex; gap: 5px; margin-top: 8px; align-items: center; background: #fff; padding: 5px; border-radius: 4px; border: 1px dashed #aaa; }
     </style>
 </head>
 <body>
@@ -64,7 +65,7 @@
                     <option value="Stats">गावनिहाय आकडेवारी</option>
                 </select>
                 <div id="fieldsList"></div>
-                <button onclick="addField()" style="background:#e9ecef; color:#333; font-weight:bold;">+ नवीन प्रश्न जोडा</button>
+                <button onclick="addField()" style="background:#e9ecef; color:#333; font-weight:bold; border:1px solid #ccc;">+ नवीन प्रश्न जोडा</button>
                 <button id="mainActionBtn" class="btn-primary" onclick="saveFullForm()">फॉर्म सेव्ह करा</button>
             </div>
         </div>
@@ -185,51 +186,86 @@
     }
 
     function addField(data = null) {
-        // ID साठी random number वापरला आहे जेणेकरून अडचण येणार नाही
         const id = Math.floor(Math.random() * 1000000); 
         const html = `
             <div class="field-card" id="f_${id}">
                 <button class="btn-remove" onclick="this.parentElement.remove()">X</button>
                 <div style="display:flex; gap:5px;">
-                    <input type="text" placeholder="मुख्य प्रश्न (उदा. ब्लिचिंग पावडर उपलब्धता)" class="fname" style="flex:2;" value="${data ? data.label : ''}">
+                    <input type="text" placeholder="मुख्य प्रश्नाचे नाव (उदा. ब्लिचिंग पावडर)" class="fname" style="flex:2; font-weight:bold;" value="${data ? data.label : ''}">
                 </div>
                 
-                <select class="ftype" onchange="toggleOptionsBox('${id}', this.value)" style="margin-top:10px; background:#f0f8ff;">
-                    <option value="text" ${data && data.type==='text'?'selected':''}>Text (मजकूर)</option>
+                <select class="ftype" onchange="toggleFieldOptions('${id}', this.value)" style="margin-top:10px; background:#f0f8ff;">
+                    <option value="text" ${data && data.type==='text'?'selected':''}>Text (साधा मजकूर)</option>
                     <option value="number" ${data && data.type==='number'?'selected':''}>Number (आकडे)</option>
                     <option value="date" ${data && data.type==='date'?'selected':''}>Date (तारीख)</option>
-                    <option value="yesno" ${data && data.type==='yesno'?'selected':''}>Yes/No (हो/नाही)</option>
-                    <option value="dropdown" ${data && data.type==='dropdown'?'selected':''}>Dropdown (अनेक पर्याय द्या)</option>
+                    <option value="dropdown" ${data && data.type==='dropdown'?'selected':''}>Dropdown (एकच प्रश्न आणि अनेक पर्याय)</option>
+                    <option value="group" ${data && data.type==='group'?'selected':''}>Group / गट (एकाच नावाखाली अनेक उप-प्रश्न)</option>
                 </select>
                 
                 <div id="opts_${id}" style="display:${data && data.type==='dropdown' ? 'block' : 'none'}; margin-top:10px; background:#ffe4b5; padding:10px; border-radius:5px;">
-                    <label style="font-size:12px; color:#d2691e;"><b>येथे तुमचे पर्याय लिहा (स्वल्पविरामाने , वेगळे करा):</b></label>
-                    <input type="text" placeholder="उदा. उपलब्ध आहे, उपलब्ध नाही" class="foptions" value="${data ? (data.options || '') : ''}">
+                    <label style="font-size:12px;">येथे पर्याय लिहा (स्वल्पविरामाने , वेगळे करा):</label>
+                    <input type="text" placeholder="उदा. होय, नाही" class="foptions" value="${data ? (data.options || '') : ''}">
                 </div>
 
-                <div style="margin-top:10px; border-left:3px solid var(--primary); padding-left:10px;">
-                    <input type="text" placeholder="या प्रश्नावर आधारित काही 'अतिरिक्त प्रश्न' विचारायचा आहे का? (नसल्यास रिकामे सोडा)" class="sname" value="${data ? (data.subLabel || '') : ''}">
+                <div id="group_${id}" style="display:${data && data.type==='group' ? 'block' : 'none'}; margin-top:10px; background:#eef; padding:10px; border-radius:5px; border-left: 3px solid var(--primary);">
+                    <label style="font-size:13px; font-weight:bold; color:var(--primary);">या गटातील उप-प्रश्न जोडा:</label>
+                    <div id="subfields_container_${id}"></div>
+                    <button type="button" onclick="addSubFieldUI('${id}')" style="margin-top:10px; font-size:13px; background:#fff; border:1px solid #ccc; padding:6px; cursor:pointer;">+ उप-प्रश्न जोडा</button>
                 </div>
             </div>`;
         document.getElementById('fieldsList').insertAdjacentHTML('beforeend', html);
+
+        // जुना डेटा असल्यास उप-प्रश्न भरणे
+        if(data && data.type === 'group' && data.subFields) {
+            data.subFields.forEach(sf => addSubFieldUI(id, sf));
+        } else if (data && data.type === 'group') {
+            addSubFieldUI(id); // default one
+        }
     }
 
-    function toggleOptionsBox(id, val) {
-        const box = document.getElementById('opts_' + id);
-        if(box) {
-            box.style.display = (val === 'dropdown') ? 'block' : 'none';
-        }
+    function toggleFieldOptions(id, val) {
+        document.getElementById('opts_' + id).style.display = (val === 'dropdown') ? 'block' : 'none';
+        document.getElementById('group_' + id).style.display = (val === 'group') ? 'block' : 'none';
+    }
+
+    function addSubFieldUI(parentId, sfData = null) {
+        const sfId = Math.floor(Math.random() * 1000000);
+        const html = `
+            <div class="sub-field-item" id="sf_${sfId}">
+                <div style="display:flex; gap:5px; width:100%;">
+                    <input type="text" placeholder="उप-प्रश्नाचे नाव (उदा. उपलब्धता)" class="sfname" style="flex:2;" value="${sfData ? sfData.label : ''}">
+                    <select class="sftype" style="flex:1;" onchange="document.getElementById('sfopts_${sfId}').style.display = this.value==='dropdown' ? 'block' : 'none'">
+                        <option value="text" ${sfData && sfData.type==='text'?'selected':''}>Text</option>
+                        <option value="dropdown" ${sfData && sfData.type==='dropdown'?'selected':''}>Dropdown</option>
+                    </select>
+                    <button type="button" onclick="this.parentElement.parentElement.remove()" style="background:red; color:white; border:none; border-radius:3px; padding:0 10px;">X</button>
+                </div>
+                <input type="text" id="sfopts_${sfId}" placeholder="पर्याय लिहा (उदा. उपलब्ध आहे, उपलब्ध नाही)" class="sfopts" style="margin-top:5px; width:100%; display:${sfData && sfData.type==='dropdown'?'block':'none'}" value="${sfData ? (sfData.options || '') : ''}">
+            </div>
+        `;
+        document.getElementById('subfields_container_' + parentId).insertAdjacentHTML('beforeend', html);
     }
 
     function getFieldsData() {
         let fields = [];
         document.querySelectorAll('.field-card').forEach(el => {
-            fields.push({
+            let fieldObj = {
                 label: el.querySelector('.fname').value,
                 type: el.querySelector('.ftype').value,
-                options: el.querySelector('.foptions') ? el.querySelector('.foptions').value : "",
-                subLabel: el.querySelector('.sname').value || null
-            });
+                options: el.querySelector('.foptions') ? el.querySelector('.foptions').value : ""
+            };
+            
+            if (fieldObj.type === 'group') {
+                fieldObj.subFields = [];
+                el.querySelectorAll('.sub-field-item').forEach(sfEl => {
+                    fieldObj.subFields.push({
+                        label: sfEl.querySelector('.sfname').value,
+                        type: sfEl.querySelector('.sftype').value,
+                        options: sfEl.querySelector('.sfopts').value
+                    });
+                });
+            }
+            fields.push(fieldObj);
         });
         return fields;
     }
@@ -285,38 +321,45 @@
         if(!f) return;
         
         JSON.parse(f.StructureJSON).forEach((field, i) => {
-            let html = `<div style="margin-bottom:15px; background:white; padding:10px; border-radius:8px; border:1px solid #ddd;"><label><b>${field.label}:</b></label>`;
-            
-            if(field.type === 'dropdown') {
-                html += `<select id="inp_${i}" onchange="toggleSub(${i})"><option value="">-- निवडा --</option>`;
-                if(field.options) {
-                    field.options.split(',').forEach(opt => {
-                        let o = opt.trim();
-                        if(o) html += `<option value="${o}">${o}</option>`;
-                    });
+            if (field.type === 'group') {
+                let html = `<div style="margin-bottom:15px; background:#fffaf0; padding:12px; border-radius:8px; border:1px solid #f5b041;">
+                            <h4 style="margin-top:0; color:var(--primary); text-align:left; border-bottom:1px solid #ccc; padding-bottom:5px;">${field.label}</h4>`;
+                
+                field.subFields.forEach((sf, j) => {
+                    html += `<div style="margin-bottom:10px;"><label style="font-size:14px; color:#555;"><b>${sf.label}:</b></label>`;
+                    if (sf.type === 'dropdown') {
+                        html += `<select id="inp_${i}_${j}"><option value="">-- निवडा --</option>`;
+                        if(sf.options) {
+                            sf.options.split(',').forEach(opt => {
+                                let o = opt.trim();
+                                if(o) html += `<option value="${o}">${o}</option>`;
+                            });
+                        }
+                        html += `</select>`;
+                    } else {
+                        html += `<input type="text" id="inp_${i}_${j}">`;
+                    }
+                    html += `</div>`;
+                });
+                html += `</div>`;
+                area.innerHTML += html;
+            } else {
+                let html = `<div style="margin-bottom:15px; background:white; padding:10px; border-radius:8px; border:1px solid #ddd;"><label><b>${field.label}:</b></label>`;
+                if(field.type === 'dropdown') {
+                    html += `<select id="inp_${i}"><option value="">-- निवडा --</option>`;
+                    if(field.options) {
+                        field.options.split(',').forEach(opt => {
+                            let o = opt.trim();
+                            if(o) html += `<option value="${o}">${o}</option>`;
+                        });
+                    }
+                    html += `</select>`;
+                } else {
+                    html += `<input type="${field.type}" id="inp_${i}">`;
                 }
-                html += `</select>`;
-            } 
-            else if(field.type === 'yesno') {
-                html += `<select id="inp_${i}" onchange="toggleSub(${i})"><option value="">-- निवडा --</option><option value="No">नाही</option><option value="Yes">होय</option></select>`;
-            } 
-            else {
-                html += `<input type="${field.type}" id="inp_${i}">`;
+                area.innerHTML += html + `</div>`;
             }
-
-            if(field.subLabel) {
-                html += `<div id="sdiv_${i}" style="display:none; margin-top:10px; margin-left:15px; border-left:3px solid orange; padding-left:10px;"><label>${field.subLabel}:</label><input type="text" id="sinp_${i}"></div>`;
-            }
-            area.innerHTML += html + `</div>`;
         });
-    }
-
-    function toggleSub(i) {
-        const div = document.getElementById('sdiv_'+i);
-        if(!div) return;
-        const val = document.getElementById('inp_'+i).value;
-        // कोणतीही व्हॅल्यू सिलेक्ट केली की अतिरिक्त प्रश्न दिसेल
-        div.style.display = (val !== '' && val !== 'No') ? 'block' : 'none';
     }
 
     function saveDataLocal() {
@@ -327,12 +370,13 @@
         let formData = {};
         const f = masterData.forms.find(x => x.FormID === fId);
         JSON.parse(f.StructureJSON).forEach((field, i) => {
-            const mainVal = document.getElementById('inp_'+i).value;
-            formData[field.label] = mainVal;
-            
-            // जर अतिरिक्त प्रश्न असेल आणि तो भरला असेल
-            if(field.subLabel && document.getElementById('sinp_'+i) && mainVal !== '' && mainVal !== 'No') {
-                formData[field.subLabel] = document.getElementById('sinp_'+i).value;
+            if (field.type === 'group') {
+                field.subFields.forEach((sf, j) => {
+                    // Google Sheet मध्ये दिसायला सोपे जावे म्हणून 'मुख्य नाव - उपनाव' असे सेव्ह होईल
+                    formData[`${field.label} - ${sf.label}`] = document.getElementById(`inp_${i}_${j}`).value;
+                });
+            } else {
+                formData[field.label] = document.getElementById('inp_'+i).value;
             }
         });
         
@@ -357,5 +401,4 @@
     }
 </script>
 </body>
-                    </html>
-    
+</html>
