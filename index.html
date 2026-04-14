@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PHC Advance Management</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
     <style>
         :root { --primary: #00705a; --secondary: #0056b3; --bg: #f4f7f6; }
         body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; padding: 0; font-size: 16px; }
@@ -93,7 +96,12 @@
                     </div>
                 </div>
                 
-                <label>गाव निवडा:</label>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 10px;">
+                    <label style="margin:0;">गाव निवडा:</label>
+                    <button onclick="clearLocalHistory()" style="background:#ffc107; color:#000; border:none; padding:5px 10px; border-radius:4px; font-size:12px; font-weight:bold; cursor:pointer;">
+                        🔄 गावे रीसेट करा
+                    </button>
+                </div>
                 <select id="selVillage"></select>
 
                 <div id="dynamicFormArea"></div>
@@ -140,7 +148,7 @@
                 
                 <div id="reportContentArea" class="hidden" style="margin-top: 20px;">
                     <div style="text-align: right; margin-bottom: 10px;">
-                        <button onclick="downloadConsolidatedExcel()" style="background:#28a745; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">📥 Excel (.xls) डाउनलोड करा</button>
+                        <button onclick="downloadConsolidatedExcel()" style="background:#28a745; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">📥 Excel (.xlsx) डाउनलोड करा</button>
                     </div>
                     <div class="table-responsive" id="reportTableContainer"></div>
                 </div>
@@ -172,7 +180,7 @@
 
 <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzODuA9XnQrD1vYnwggn7PabqYNd3dp9tMBqTsLyWLdVP3Zl0K-4Zg_fuxjtOHWjQKs/exec";
-    let masterData = { forms: [], villages: [], filledStats: [] }; // filledStats जोडले
+    let masterData = { forms: [], villages: [], filledStats: [] };
     let user = null;
     let currentReports = []; 
 
@@ -297,8 +305,6 @@
                         let matchYear = (selYear === "सर्व" || String(row[yearIdx]) === String(selYear));
                         if(matchMonth && matchYear) fData.push(row);
                     }
-                    
-                    // नेहमी रिपोर्ट ॲड करा (जरी डेटा रिकामा असेल, म्हणजे fData.length == 1 असेल तरीही)
                     finalReports.push({ formName: rep.formName, data: fData });
                 });
 
@@ -330,7 +336,7 @@
             
             let showIndices = [];
             headers.forEach((h, i) => { if(!hiddenColumns.includes(h)) showIndices.push(i); });
-            let colCount = showIndices.length + 1; // +1 for Sr No.
+            let colCount = showIndices.length + 1; 
 
             html += `<table class="report-table"><thead>`;
             html += `<tr><th colspan="${colCount}" style="font-size:18px; background:var(--primary); color:white; padding:12px;">${rep.formName}</th></tr>`;
@@ -339,7 +345,6 @@
             html += `</tr></thead><tbody>`;
 
             if(data.length === 1) {
-                // डेटा नसेल तर 'निरंक' दाखवा
                 html += `<tr><td colspan="${colCount}" style="color:red; font-weight:bold; font-size:16px;">निरंक (Nil)</td></tr>`;
             } else {
                 for(let i=1; i<data.length; i++) {
@@ -353,301 +358,10 @@
         container.innerHTML = html;
     }
 
+    // --- खरा Excel (.xlsx) तयार करणारी सुधारित कार्यपद्धती (SheetJS) ---
     function downloadConsolidatedExcel() {
         if(currentReports.length === 0) return;
         
         let month = document.getElementById('reportMonth').value;
         let year = document.getElementById('reportYear').value;
-        let periodText = (month === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${month} ${year}`;
-        
-        let tableHTML = `<table border="1" style="border-collapse: collapse; font-family: Arial, sans-serif;">`;
-        let mainTitle = document.getElementById('reportFormSelect').value === "ALL" ? "एकत्रित मासिक अहवाल" : currentReports[0].formName + " अहवाल";
-        
-        let maxCols = 5; 
-        currentReports.forEach(r => { let c = r.data[0].filter(h => !hiddenColumns.includes(h)).length + 1; if(c > maxCols) maxCols = c; });
-
-        tableHTML += `<tr><th colspan="${maxCols}" style="background-color: #00705a; color: #ffffff; font-size: 22px; padding: 15px; text-align: center; font-weight: bold;">${mainTitle}</th></tr>`;
-        tableHTML += `<tr><th colspan="${maxCols}" style="background-color: #e9ecef; color: #000000; font-size: 16px; padding: 10px; text-align: center; font-weight: bold;">उपकेंद्र: ${user.subcenter}   |   अहवाल महिना: ${periodText}</th></tr>`;
-        tableHTML += `<tr><td colspan="${maxCols}"></td></tr>`; 
-
-        currentReports.forEach(rep => {
-            let data = rep.data;
-            let headers = data[0];
-            let showIndices = [];
-            headers.forEach((h, i) => { if(!hiddenColumns.includes(h)) showIndices.push(i); });
-            let colCount = showIndices.length + 1;
-
-            tableHTML += `<tr><th colspan="${colCount}" style="background-color: #d4edda; color: #155724; font-size: 18px; padding: 10px; text-align: left; font-weight: bold;">फॉर्म: ${rep.formName}</th></tr>`;
-            tableHTML += `<tr><th style="background-color: #f4b400; color: #000000; font-weight: bold; padding: 8px; border: 1px solid #000;">अ.क्र.</th>`;
-            showIndices.forEach(idx => { tableHTML += `<th style="background-color: #f4b400; color: #000000; font-weight: bold; padding: 8px; border: 1px solid #000;">${headers[idx]}</th>`; });
-            tableHTML += `</tr>`;
-
-            if(data.length === 1) {
-                tableHTML += `<tr><td colspan="${colCount}" style="padding: 10px; text-align: center; border: 1px solid #000; color:red; font-weight:bold;">निरंक (Nil)</td></tr>`;
-            } else {
-                for(let i=1; i<data.length; i++) {
-                    tableHTML += `<tr><td style="padding: 5px; text-align: center; border: 1px solid #000;">${i}</td>`;
-                    showIndices.forEach(idx => { tableHTML += `<td style="padding: 5px; text-align: center; border: 1px solid #000;">${data[i][idx] || "-"}</td>`; });
-                    tableHTML += `</tr>`;
-                }
-            }
-            tableHTML += `<tr><td colspan="${maxCols}" style="height: 20px;"></td></tr>`; 
-        });
-        tableHTML += `</table>`;
-
-        let uri = 'data:application/vnd.ms-excel;base64,';
-        let template = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"></head><body>{table}</body></html>';
-        let base64 = function(s) { return window.btoa(unescape(encodeURIComponent(s))) };
-        let format = function(s, c) { return s.replace(/{(\w+)}/g, function(m, p) { return c[p]; }) };
-        
-        let ctx = {worksheet: 'Consolidated Report', table: tableHTML};
-        let link = document.createElement("a");
-        link.href = uri + base64(format(template, ctx));
-        link.download = `मासिक_अहवाल_${user.subcenter}_${periodText}.xls`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    // --- Admin & Data Entry Section ---
-    function openNewFormBuilder() {
-        document.getElementById('existingFormsArea').classList.add('hidden');
-        document.getElementById('formBuilder').classList.remove('hidden');
-        document.getElementById('builderTitle').innerText = "नवीन फॉर्म तयार करा";
-        document.getElementById('editFormID').value = "";
-        document.getElementById('newFormName').value = "";
-        document.getElementById('fieldsList').innerHTML = "";
-        document.getElementById('mainActionBtn').innerText = "फॉर्म सेव्ह करा";
-        document.getElementById('mainActionBtn').onclick = saveFullForm;
-    }
-    
-    function renderFormsListForEdit() {
-        const listDiv = document.getElementById('formsEditList');
-        listDiv.innerHTML = "";
-        masterData.forms.forEach(f => {
-            listDiv.innerHTML += `<div class="edit-row"><span><b>${f.FormName}</b></span><button class="btn-edit" onclick="startEditing('${f.FormID}')">Edit</button></div>`;
-        });
-    }
-
-    function startEditing(fId) {
-        const f = masterData.forms.find(x => x.FormID === fId);
-        if(!f) return;
-        document.getElementById('existingFormsArea').classList.add('hidden');
-        document.getElementById('formBuilder').classList.remove('hidden');
-        document.getElementById('builderTitle').innerText = "फॉर्म एडिट: " + f.FormName;
-        document.getElementById('editFormID').value = f.FormID;
-        document.getElementById('newFormName').value = f.FormName;
-        document.getElementById('newFormType').value = f.FormType;
-        document.getElementById('fieldsList').innerHTML = "";
-        document.getElementById('mainActionBtn').innerText = "बदल अपडेट करा (Update)";
-        document.getElementById('mainActionBtn').onclick = updateExistingForm;
-        JSON.parse(f.StructureJSON).forEach(field => addField(field));
-    }
-
-    function addField(data = null) {
-        const id = Math.floor(Math.random() * 1000000); 
-        const html = `
-            <div class="field-card" id="f_${id}">
-                <button type="button" class="btn-remove" onclick="this.parentElement.remove()">X</button>
-                <div style="display:flex; flex-direction:column; gap:5px; margin-top: 15px;">
-                    <label style="font-size:14px; color:#555;">मुख्य प्रश्नाचे नाव:</label>
-                    <input type="text" placeholder="उदा. ब्लिचिंग पावडर" class="fname" style="width:100%;" value="${data ? data.label : ''}">
-                </div>
-                <select class="ftype" onchange="toggleFieldOptions('${id}', this.value)" style="margin-top:10px; background:#f0f8ff;">
-                    <option value="text" ${data && data.type==='text'?'selected':''}>Text (साधा मजकूर)</option>
-                    <option value="number" ${data && data.type==='number'?'selected':''}>Number (आकडे)</option>
-                    <option value="date" ${data && data.type==='date'?'selected':''}>Date (तारीख)</option>
-                    <option value="dropdown" ${data && data.type==='dropdown'?'selected':''}>Dropdown (एकच प्रश्न आणि अनेक पर्याय)</option>
-                    <option value="group" ${data && data.type==='group'?'selected':''}>Group / गट (एकाच नावाखाली अनेक उप-प्रश्न)</option>
-                </select>
-                <div id="opts_${id}" style="display:${data && data.type==='dropdown' ? 'block' : 'none'}; margin-top:10px; background:#ffe4b5; padding:10px; border-radius:5px;">
-                    <label style="font-size:12px;">येथे पर्याय लिहा (स्वल्पविरामाने , वेगळे करा):</label>
-                    <input type="text" placeholder="उदा. होय, नाही" class="foptions" value="${data ? (data.options || '') : ''}">
-                </div>
-                <div id="group_${id}" style="display:${data && data.type==='group' ? 'block' : 'none'}; margin-top:10px; background:#eef; padding:10px; border-radius:5px; border-left: 3px solid var(--primary);">
-                    <label style="font-size:13px; font-weight:bold; color:var(--primary);">या गटातील उप-प्रश्न जोडा:</label>
-                    <div id="subfields_container_${id}"></div>
-                    <button type="button" onclick="addSubFieldUI('${id}')" style="margin-top:10px; font-size:13px; background:#fff; border:1px solid #ccc; padding:6px; cursor:pointer; width:100%;">+ उप-प्रश्न जोडा</button>
-                </div>
-            </div>`;
-        document.getElementById('fieldsList').insertAdjacentHTML('beforeend', html);
-        if(data && data.type === 'group' && data.subFields) { data.subFields.forEach(sf => addSubFieldUI(id, sf)); } 
-        else if (data && data.type === 'group') { addSubFieldUI(id); }
-    }
-
-    function toggleFieldOptions(id, val) {
-        document.getElementById('opts_' + id).style.display = (val === 'dropdown') ? 'block' : 'none';
-        document.getElementById('group_' + id).style.display = (val === 'group') ? 'block' : 'none';
-    }
-
-    function addSubFieldUI(parentId, sfData = null) {
-        const sfId = Math.floor(Math.random() * 1000000);
-        const html = `
-            <div class="sub-field-item" id="sf_${sfId}" style="position: relative; display: flex; flex-direction: column; gap: 8px; background: #fff; padding: 12px; padding-top: 25px; border-radius: 5px; border: 1px solid #ccc; margin-top: 10px;">
-                <button type="button" class="btn-remove" onclick="this.parentElement.remove()" style="position: absolute; top: 5px; right: 5px;">X</button>
-                <input type="text" placeholder="उप-प्रश्नाचे नाव" class="sfname" style="width: 100%;" value="${sfData ? sfData.label : ''}">
-                <select class="sftype" style="width: 100%;" onchange="document.getElementById('sfopts_${sfId}').style.display = this.value==='dropdown' ? 'block' : 'none'">
-                    <option value="text" ${sfData && sfData.type==='text'?'selected':''}>Text (मजकूर)</option>
-                    <option value="dropdown" ${sfData && sfData.type==='dropdown'?'selected':''}>Dropdown (पर्याय)</option>
-                </select>
-                <input type="text" id="sfopts_${sfId}" placeholder="पर्याय लिहा" class="sfopts" style="width: 100%; margin-top: 5px; display:${sfData && sfData.type==='dropdown'?'block':'none'}" value="${sfData ? (sfData.options || '') : ''}">
-            </div>
-        `;
-        document.getElementById('subfields_container_' + parentId).insertAdjacentHTML('beforeend', html);
-    }
-
-    function getFieldsData() {
-        let fields = [];
-        document.querySelectorAll('.field-card').forEach(el => {
-            let fieldObj = { label: el.querySelector('.fname').value, type: el.querySelector('.ftype').value, options: el.querySelector('.foptions') ? el.querySelector('.foptions').value : "" };
-            if (fieldObj.type === 'group') {
-                fieldObj.subFields = [];
-                el.querySelectorAll('.sub-field-item').forEach(sfEl => {
-                    fieldObj.subFields.push({ label: sfEl.querySelector('.sfname').value, type: sfEl.querySelector('.sftype').value, options: sfEl.querySelector('.sfopts').value });
-                });
-            }
-            fields.push(fieldObj);
-        });
-        return fields;
-    }
-
-    async function saveFullForm() {
-        const name = document.getElementById('newFormName').value;
-        const type = document.getElementById('newFormType').value;
-        if(!name) { alert("फॉर्मचे नाव टाका"); return; }
-        const payload = { name, type, fields: getFieldsData(), adminMobile: user.mobile };
-        const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"createForm", payload}) });
-        const d = await r.json();
-        if(d.success) { alert(d.message); location.reload(); }
-    }
-
-    async function updateExistingForm() {
-        const formID = document.getElementById('editFormID').value;
-        const name = document.getElementById('newFormName').value;
-        const type = document.getElementById('newFormType').value;
-        const payload = { formID, name, type, fields: getFieldsData() };
-        const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"updateForm", payload}) });
-        const d = await r.json();
-        if(d.success) { alert(d.message); location.reload(); }
-    }
-
-    // --- नवीन: सर्व्हर व लोकल हिस्ट्री वापरून गावे फिल्टर करणे ---
-    function updateVillageDropdown() {
-        const vSel = document.getElementById('selVillage');
-        const fId = document.getElementById('selForm').value;
-        const month = document.getElementById('selMonth').value;
-        const year = document.getElementById('selYear').value;
-        
-        vSel.innerHTML = '<option value="">-- गाव निवडा --</option>';
-        if(!user) return;
-
-        const selectedForm = masterData.forms.find(f => f.FormID === fId);
-        const isStatsForm = selectedForm && selectedForm.FormType === 'Stats';
-        
-        // लोकल हिस्ट्री
-        const localHistory = JSON.parse(localStorage.getItem("submissionHistory") || "[]");
-        // सर्व्हर हिस्ट्री (Code.gs मधून आलेली)
-        const serverHistory = masterData.filledStats || [];
-
-        masterData.villages.filter(v => {
-            const belongsToSubCenter = v.SubCenterID.toLowerCase() === user.subcenter.toLowerCase() || v.SubCenterID.toLowerCase() === "all";
-            if(!belongsToSubCenter) return false;
-            
-            if(isStatsForm) {
-                const isLocalFilled = localHistory.some(h => h.formID === fId && h.village === v.VillageName && h.month === month && h.year == year);
-                const isServerFilled = serverHistory.some(h => h.formID === fId && h.village === v.VillageName && h.month === month && h.year == year);
-                
-                // जर शीटमध्ये किंवा लोकलमध्ये नोंद असेल तर ते गाव लपवा
-                if(isLocalFilled || isServerFilled) return false;
-            }
-            return true;
-        }).forEach(v => {
-            vSel.innerHTML += `<option value="${v.VillageName}">${v.VillageName}</option>`;
-        });
-    }
-
-    function loadDynamicFields() {
-        const fId = document.getElementById('selForm').value;
-        const area = document.getElementById('dynamicFormArea');
-        area.innerHTML = "";
-        const f = masterData.forms.find(x => x.FormID === fId);
-        if(!f) return;
-        
-        JSON.parse(f.StructureJSON).forEach((field, i) => {
-            if (field.type === 'group') {
-                let html = `<div style="margin-bottom:15px; background:#fffaf0; padding:12px; border-radius:8px; border:1px solid #f5b041;">
-                            <h4 style="margin-top:0; color:var(--primary); text-align:left; border-bottom:1px solid #ccc; padding-bottom:5px;">${field.label}</h4>`;
-                field.subFields.forEach((sf, j) => {
-                    html += `<div style="margin-bottom:10px;"><label style="font-size:14px; color:#555;"><b>${sf.label}:</b></label>`;
-                    if (sf.type === 'dropdown') {
-                        html += `<select id="inp_${i}_${j}"><option value="">-- निवडा --</option>`;
-                        if(sf.options) { sf.options.split(',').forEach(opt => { let o = opt.trim(); if(o) html += `<option value="${o}">${o}</option>`; }); }
-                        html += `</select>`;
-                    } else { html += `<input type="text" id="inp_${i}_${j}">`; }
-                    html += `</div>`;
-                });
-                html += `</div>`;
-                area.innerHTML += html;
-            } else {
-                let html = `<div style="margin-bottom:15px; background:white; padding:10px; border-radius:8px; border:1px solid #ddd;"><label><b>${field.label}:</b></label>`;
-                if(field.type === 'dropdown') {
-                    html += `<select id="inp_${i}"><option value="">-- निवडा --</option>`;
-                    if(field.options) { field.options.split(',').forEach(opt => { let o = opt.trim(); if(o) html += `<option value="${o}">${o}</option>`; }); }
-                    html += `</select>`;
-                } else { html += `<input type="${field.type}" id="inp_${i}">`; }
-                area.innerHTML += html + `</div>`;
-            }
-        });
-    }
-
-    function saveDataLocal() {
-        const fId = document.getElementById('selForm').value;
-        const vName = document.getElementById('selVillage').value;
-        const month = document.getElementById('selMonth').value;
-        const year = document.getElementById('selYear').value;
-
-        if(!fId || !vName) { alert("कृपया फॉर्म आणि गाव निवडा!"); return; }
-        let formData = {};
-        formData["महिना"] = month;
-        formData["वर्ष"] = year;
-
-        const f = masterData.forms.find(x => x.FormID === fId);
-        JSON.parse(f.StructureJSON).forEach((field, i) => {
-            if (field.type === 'group') {
-                field.subFields.forEach((sf, j) => { formData[`${field.label} - ${sf.label}`] = document.getElementById(`inp_${i}_${j}`).value; });
-            } else { formData[field.label] = document.getElementById('inp_'+i).value; }
-        });
-        
-        const entry = { entryID: Date.now(), mobileNo: user.mobile, subCenter: user.subcenter, village: vName, formID: fId, formData: formData };
-        let q = JSON.parse(localStorage.getItem("syncQueue") || "[]");
-        q.push(entry);
-        localStorage.setItem("syncQueue", JSON.stringify(q));
-
-        let history = JSON.parse(localStorage.getItem("submissionHistory") || "[]");
-        history.push({formID: fId, village: vName, month: month, year: year});
-        localStorage.setItem("submissionHistory", JSON.stringify(history));
-
-        document.getElementById('syncStatus').innerText = "रेकॉर्ड सेव्ह झाला! लगेच पुढील गावाची माहिती भरा.";
-        setTimeout(() => document.getElementById('syncStatus').innerText = "", 3000);
-        updateVillageDropdown(); 
-        loadDynamicFields(); 
-    }
-
-    async function syncDataToServer() {
-        let q = JSON.parse(localStorage.getItem("syncQueue") || "[]");
-        if(q.length === 0) { alert("सर्व्हरवर पाठवण्यासाठी नवीन डेटा नाही."); return; }
-        document.getElementById('syncStatus').innerText = "डेटा पाठवत आहे...";
-        try {
-            const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"syncData", payload: q}) });
-            const d = await r.json();
-            if(d.success) { 
-                localStorage.setItem("syncQueue", "[]"); 
-                alert("ऑनलाइन अपडेट यशस्वी!"); 
-                document.getElementById('syncStatus').innerText = ""; 
-                fetchData(); // सर्व्हरवरील माहिती अपडेट करण्यासाठी
-            }
-        } catch(e) { alert("एरर आला. इंटरनेट तपासा."); }
-    }
-</script>
-</body>
-</html>
+        let periodText = (month === 'सर्व' && year 
