@@ -22,7 +22,6 @@
         .row-flex { display: flex; gap: 10px; align-items: center; }
         .row-flex > div { flex: 1; }
         
-        /* Professional Table Styling */
         .table-responsive { width: 100%; overflow-x: auto; margin-top: 15px; }
         .report-table { width: 100%; border-collapse: collapse; min-width: 600px; background: white; margin-bottom: 25px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border: 1px solid #ddd; }
         .report-table th { padding: 10px; text-align: center; white-space: nowrap; border: 1px solid #ddd; }
@@ -30,7 +29,6 @@
         .report-table tr:nth-child(even) { background-color: #f9f9f9; }
         .report-table tr:hover { background-color: #f1f1f1; }
         
-        /* Navigation Tabs */
         .nav-tabs { display: flex; gap: 5px; margin-bottom: 20px; background: #eee; padding: 5px; border-radius: 8px; }
         .nav-tab { flex: 1; text-align: center; padding: 10px; background: transparent; border: none; font-weight: bold; color: #555; border-radius: 6px; cursor: pointer; }
         .nav-tab.active { background: white; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -174,9 +172,9 @@
 
 <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzODuA9XnQrD1vYnwggn7PabqYNd3dp9tMBqTsLyWLdVP3Zl0K-4Zg_fuxjtOHWjQKs/exec";
-    let masterData = { forms: [], villages: [] };
+    let masterData = { forms: [], villages: [], filledStats: [] }; // filledStats जोडले
     let user = null;
-    let currentReports = []; // Holds all fetched and filtered reports
+    let currentReports = []; 
 
     async function unlockApp() {
         if(document.getElementById('sitePass').value === "1234") {
@@ -265,7 +263,7 @@
         });
     }
 
-    // --- Report Fetch & Filter Logic (Array based) ---
+    // --- Report Section ---
     async function fetchReportData() {
         const formID = document.getElementById('reportFormSelect').value;
         const selMonth = document.getElementById('reportMonth').value;
@@ -287,7 +285,6 @@
             if(d.success && d.reports && d.reports.length > 0) {
                 let finalReports = [];
                 
-                // Filter all received reports by month and year
                 d.reports.forEach(rep => {
                     let headers = rep.data[0];
                     let monthIdx = headers.indexOf("महिना");
@@ -297,12 +294,12 @@
                     for(let i=1; i<rep.data.length; i++) {
                         let row = rep.data[i];
                         let matchMonth = (selMonth === "सर्व" || row[monthIdx] === selMonth);
-                        let matchYear = (selYear === "सर्व" || row[yearIdx] == String(selYear));
+                        let matchYear = (selYear === "सर्व" || String(row[yearIdx]) === String(selYear));
                         if(matchMonth && matchYear) fData.push(row);
                     }
-                    if(fData.length > 1) {
-                        finalReports.push({ formName: rep.formName, data: fData });
-                    }
+                    
+                    // नेहमी रिपोर्ट ॲड करा (जरी डेटा रिकामा असेल, म्हणजे fData.length == 1 असेल तरीही)
+                    finalReports.push({ formName: rep.formName, data: fData });
                 });
 
                 if(finalReports.length > 0) {
@@ -321,7 +318,6 @@
         }
     }
 
-    // लपवायचे रकाने (हे UI मध्ये आणि एक्सेल मध्ये दिसणार नाहीत)
     const hiddenColumns = ["तारीख", "मोबाईल क्र.", "उपकेंद्र", "महिना", "वर्ष", "मूळ डेटा (JSON)"];
 
     function renderMultipleTables(reports, month, year) {
@@ -332,38 +328,31 @@
             let data = rep.data;
             let headers = data[0];
             
-            // फक्त दाखवायचे रकाने शोधणे
             let showIndices = [];
             headers.forEach((h, i) => { if(!hiddenColumns.includes(h)) showIndices.push(i); });
-            
-            let colCount = showIndices.length + 1; // +1 अ.क्र. साठी
+            let colCount = showIndices.length + 1; // +1 for Sr No.
 
-            html += `<table class="report-table">`;
-            html += `<thead>`;
+            html += `<table class="report-table"><thead>`;
             html += `<tr><th colspan="${colCount}" style="font-size:18px; background:var(--primary); color:white; padding:12px;">${rep.formName}</th></tr>`;
-            
-            // हेडिंगची ओळ
             html += `<tr><th style="background:#f4b400; color:#000;">अ.क्र.</th>`;
-            showIndices.forEach(idx => {
-                html += `<th style="background:#f4b400; color:#000;">${headers[idx]}</th>`;
-            });
+            showIndices.forEach(idx => { html += `<th style="background:#f4b400; color:#000;">${headers[idx]}</th>`; });
             html += `</tr></thead><tbody>`;
 
-            // डेटाची ओळ
-            for(let i=1; i<data.length; i++) {
-                html += `<tr><td>${i}</td>`;
-                showIndices.forEach(idx => {
-                    html += `<td>${data[i][idx] || "-"}</td>`;
-                });
-                html += `</tr>`;
+            if(data.length === 1) {
+                // डेटा नसेल तर 'निरंक' दाखवा
+                html += `<tr><td colspan="${colCount}" style="color:red; font-weight:bold; font-size:16px;">निरंक (Nil)</td></tr>`;
+            } else {
+                for(let i=1; i<data.length; i++) {
+                    html += `<tr><td>${i}</td>`;
+                    showIndices.forEach(idx => { html += `<td>${data[i][idx] || "-"}</td>`; });
+                    html += `</tr>`;
+                }
             }
             html += `</tbody></table>`;
         });
-        
         container.innerHTML = html;
     }
 
-    // --- Advanced Consolidated Excel Export ---
     function downloadConsolidatedExcel() {
         if(currentReports.length === 0) return;
         
@@ -372,19 +361,15 @@
         let periodText = (month === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${month} ${year}`;
         
         let tableHTML = `<table border="1" style="border-collapse: collapse; font-family: Arial, sans-serif;">`;
-        
-        // 1. मुख्य रिपोर्टचे हेडिंग (सर्वांसाठी एक)
         let mainTitle = document.getElementById('reportFormSelect').value === "ALL" ? "एकत्रित मासिक अहवाल" : currentReports[0].formName + " अहवाल";
         
-        // जास्तीत जास्त कॉलम किती आहेत ते मोजणे (लेआऊट सेट करण्यासाठी)
         let maxCols = 5; 
         currentReports.forEach(r => { let c = r.data[0].filter(h => !hiddenColumns.includes(h)).length + 1; if(c > maxCols) maxCols = c; });
 
         tableHTML += `<tr><th colspan="${maxCols}" style="background-color: #00705a; color: #ffffff; font-size: 22px; padding: 15px; text-align: center; font-weight: bold;">${mainTitle}</th></tr>`;
         tableHTML += `<tr><th colspan="${maxCols}" style="background-color: #e9ecef; color: #000000; font-size: 16px; padding: 10px; text-align: center; font-weight: bold;">उपकेंद्र: ${user.subcenter}   |   अहवाल महिना: ${periodText}</th></tr>`;
-        tableHTML += `<tr><td colspan="${maxCols}"></td></tr>`; // रिकामी ओळ
+        tableHTML += `<tr><td colspan="${maxCols}"></td></tr>`; 
 
-        // 2. प्रत्येक फॉर्मचा डेटा
         currentReports.forEach(rep => {
             let data = rep.data;
             let headers = data[0];
@@ -392,31 +377,24 @@
             headers.forEach((h, i) => { if(!hiddenColumns.includes(h)) showIndices.push(i); });
             let colCount = showIndices.length + 1;
 
-            // फॉर्मचे नाव (Sub-heading)
             tableHTML += `<tr><th colspan="${colCount}" style="background-color: #d4edda; color: #155724; font-size: 18px; padding: 10px; text-align: left; font-weight: bold;">फॉर्म: ${rep.formName}</th></tr>`;
-            
-            // टेबल हेडिंग (अ.क्र. सहित)
             tableHTML += `<tr><th style="background-color: #f4b400; color: #000000; font-weight: bold; padding: 8px; border: 1px solid #000;">अ.क्र.</th>`;
-            showIndices.forEach(idx => {
-                tableHTML += `<th style="background-color: #f4b400; color: #000000; font-weight: bold; padding: 8px; border: 1px solid #000;">${headers[idx]}</th>`;
-            });
+            showIndices.forEach(idx => { tableHTML += `<th style="background-color: #f4b400; color: #000000; font-weight: bold; padding: 8px; border: 1px solid #000;">${headers[idx]}</th>`; });
             tableHTML += `</tr>`;
 
-            // टेबल डेटा
-            for(let i=1; i<data.length; i++) {
-                tableHTML += `<tr><td style="padding: 5px; text-align: center; border: 1px solid #000;">${i}</td>`;
-                showIndices.forEach(idx => {
-                    tableHTML += `<td style="padding: 5px; text-align: center; border: 1px solid #000;">${data[i][idx] || "-"}</td>`;
-                });
-                tableHTML += `</tr>`;
+            if(data.length === 1) {
+                tableHTML += `<tr><td colspan="${colCount}" style="padding: 10px; text-align: center; border: 1px solid #000; color:red; font-weight:bold;">निरंक (Nil)</td></tr>`;
+            } else {
+                for(let i=1; i<data.length; i++) {
+                    tableHTML += `<tr><td style="padding: 5px; text-align: center; border: 1px solid #000;">${i}</td>`;
+                    showIndices.forEach(idx => { tableHTML += `<td style="padding: 5px; text-align: center; border: 1px solid #000;">${data[i][idx] || "-"}</td>`; });
+                    tableHTML += `</tr>`;
+                }
             }
-            // दोन फॉर्मच्या मध्ये एक रिकामी ओळ
             tableHTML += `<tr><td colspan="${maxCols}" style="height: 20px;"></td></tr>`; 
         });
-        
         tableHTML += `</table>`;
 
-        // फाईल डाउनलोड करणे
         let uri = 'data:application/vnd.ms-excel;base64,';
         let template = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"></head><body>{table}</body></html>';
         let base64 = function(s) { return window.btoa(unescape(encodeURIComponent(s))) };
@@ -431,7 +409,7 @@
         document.body.removeChild(link);
     }
 
-    // --- Admin & Entry Logic ---
+    // --- Admin & Data Entry Section ---
     function openNewFormBuilder() {
         document.getElementById('existingFormsArea').classList.add('hidden');
         document.getElementById('formBuilder').classList.remove('hidden');
@@ -553,6 +531,7 @@
         if(d.success) { alert(d.message); location.reload(); }
     }
 
+    // --- नवीन: सर्व्हर व लोकल हिस्ट्री वापरून गावे फिल्टर करणे ---
     function updateVillageDropdown() {
         const vSel = document.getElementById('selVillage');
         const fId = document.getElementById('selForm').value;
@@ -564,14 +543,22 @@
 
         const selectedForm = masterData.forms.find(f => f.FormID === fId);
         const isStatsForm = selectedForm && selectedForm.FormType === 'Stats';
-        const history = JSON.parse(localStorage.getItem("submissionHistory") || "[]");
+        
+        // लोकल हिस्ट्री
+        const localHistory = JSON.parse(localStorage.getItem("submissionHistory") || "[]");
+        // सर्व्हर हिस्ट्री (Code.gs मधून आलेली)
+        const serverHistory = masterData.filledStats || [];
 
         masterData.villages.filter(v => {
             const belongsToSubCenter = v.SubCenterID.toLowerCase() === user.subcenter.toLowerCase() || v.SubCenterID.toLowerCase() === "all";
             if(!belongsToSubCenter) return false;
+            
             if(isStatsForm) {
-                const isAlreadyFilled = history.some(h => h.formID === fId && h.village === v.VillageName && h.month === month && h.year === year);
-                if(isAlreadyFilled) return false;
+                const isLocalFilled = localHistory.some(h => h.formID === fId && h.village === v.VillageName && h.month === month && h.year == year);
+                const isServerFilled = serverHistory.some(h => h.formID === fId && h.village === v.VillageName && h.month === month && h.year == year);
+                
+                // जर शीटमध्ये किंवा लोकलमध्ये नोंद असेल तर ते गाव लपवा
+                if(isLocalFilled || isServerFilled) return false;
             }
             return true;
         }).forEach(v => {
@@ -653,7 +640,12 @@
         try {
             const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"syncData", payload: q}) });
             const d = await r.json();
-            if(d.success) { localStorage.setItem("syncQueue", "[]"); alert("ऑनलाइन अपडेट यशस्वी!"); document.getElementById('syncStatus').innerText = ""; }
+            if(d.success) { 
+                localStorage.setItem("syncQueue", "[]"); 
+                alert("ऑनलाइन अपडेट यशस्वी!"); 
+                document.getElementById('syncStatus').innerText = ""; 
+                fetchData(); // सर्व्हरवरील माहिती अपडेट करण्यासाठी
+            }
         } catch(e) { alert("एरर आला. इंटरनेट तपासा."); }
     }
 </script>
