@@ -12,7 +12,7 @@
         input, select, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; }
         .btn-primary { background: var(--primary); color: white; font-weight: bold; border: none; cursor: pointer; }
         .btn-admin { background: #6c757d; color: white; border: none; cursor: pointer; }
-        .btn-report { background: #17a2b8; color: white; border: none; cursor: pointer; }
+        .btn-report { background: #17a2b8; color: white; border: none; cursor: pointer; font-weight: bold; }
         .field-card { border: 2px solid #ccc; padding: 15px; margin: 10px 0; border-radius: 8px; background: #fafafa; position: relative; }
         .hidden { display: none !important; }
         .status-bar { padding: 10px; text-align: center; font-weight: bold; border-radius: 5px; margin-bottom: 15px; }
@@ -23,10 +23,10 @@
         .row-flex > div { flex: 1; }
         
         /* Professional Table Styling */
-        .table-responsive { width: 100%; overflow-x: auto; margin-top: 15px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
+        .table-responsive { width: 100%; overflow-x: auto; margin-top: 15px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border: 1px solid #ddd; }
         table { width: 100%; border-collapse: collapse; min-width: 600px; background: white; }
-        th { background-color: var(--primary); color: white; padding: 12px; text-align: left; font-size: 14px; white-space: nowrap; }
-        td { padding: 10px 12px; border-bottom: 1px solid #ddd; font-size: 14px; color: #333; }
+        th { padding: 12px; text-align: center; white-space: nowrap; }
+        td { padding: 10px 12px; border: 1px solid #ddd; font-size: 14px; color: #333; text-align: center; }
         tr:nth-child(even) { background-color: #f9f9f9; }
         tr:hover { background-color: #f1f1f1; }
         
@@ -107,16 +107,42 @@
 
             <div id="reportsSection" class="hidden">
                 <h3>रिपोर्ट्स डाउनलोड आणि पहा</h3>
-                <label>कोणत्या फॉर्मचा अहवाल पाहायचा आहे?</label>
-                <select id="reportFormSelect"></select>
-                <button class="btn-report" onclick="fetchReportData()">रिपोर्ट पहा 🔍</button>
                 
-                <div id="reportLoader" style="text-align:center; color:orange; margin-top:10px; display:none;">डेटा लोड होत आहे, कृपया थांबा...</div>
+                <div class="row-flex" style="margin-bottom: 15px;">
+                    <div style="flex: 2;">
+                        <label>अहवाल (फॉर्म) निवडा:</label>
+                        <select id="reportFormSelect"></select>
+                    </div>
+                </div>
+                <div class="row-flex" style="margin-bottom: 15px;">
+                    <div>
+                        <label>महिना:</label>
+                        <select id="reportMonth">
+                            <option value="सर्व">सर्व महिने (All)</option>
+                            <option value="जानेवारी">जानेवारी</option><option value="फेब्रुवारी">फेब्रुवारी</option>
+                            <option value="मार्च">मार्च</option><option value="एप्रिल" selected>एप्रिल</option>
+                            <option value="मे">मे</option><option value="जून">जून</option>
+                            <option value="जुलै">जुलै</option><option value="ऑगस्ट">ऑगस्ट</option>
+                            <option value="सप्टेंबर">सप्टेंबर</option><option value="ऑक्टोबर">ऑक्टोबर</option>
+                            <option value="नोव्हेंबर">नोव्हेंबर</option><option value="डिसेंबर">डिसेंबर</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>वर्ष:</label>
+                        <select id="reportYear">
+                            <option value="सर्व">सर्व वर्षे (All)</option>
+                            <option value="2025">2025</option><option value="2026" selected>2026</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button class="btn-report" onclick="fetchReportData()">रिपोर्ट तयार करा 📊</button>
+                
+                <div id="reportLoader" style="text-align:center; color:orange; margin-top:10px; display:none; font-weight:bold;">डेटा लोड होत आहे, कृपया थांबा...</div>
                 
                 <div id="reportContentArea" class="hidden" style="margin-top: 20px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <h4 style="margin:0; color:var(--primary);" id="reportTitle">अहवाल</h4>
-                        <button onclick="downloadCSV()" style="background:#28a745; color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; font-weight:bold;">📥 Excel डाउनलोड</button>
+                    <div style="text-align: right; margin-bottom: 10px;">
+                        <button onclick="downloadExcel()" style="background:#28a745; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">📥 Excel (.xls) डाउनलोड करा</button>
                     </div>
                     <div class="table-responsive">
                         <table id="reportTable"></table>
@@ -212,7 +238,6 @@
         }
     }
 
-    // --- Tab Switching Logic ---
     function switchTab(tab) {
         document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
         document.getElementById('entrySection').classList.add('hidden');
@@ -243,9 +268,12 @@
         });
     }
 
-    // --- Report Section Logic (नवीन) ---
+    // --- Report Fetch & Filter Logic ---
     async function fetchReportData() {
         const formID = document.getElementById('reportFormSelect').value;
+        const selMonth = document.getElementById('reportMonth').value;
+        const selYear = document.getElementById('reportYear').value;
+
         if(!formID) { alert("कृपया फॉर्म निवडा"); return; }
         
         document.getElementById('reportLoader').style.display = "block";
@@ -257,12 +285,33 @@
             const d = await r.json();
             
             document.getElementById('reportLoader').style.display = "none";
+            
             if(d.success && d.data.length > 1) {
-                currentReportData = d.data;
-                currentReportName = d.formName;
-                document.getElementById('reportTitle').innerText = d.formName + " अहवाल";
-                renderTable(d.data);
-                document.getElementById('reportContentArea').classList.remove('hidden');
+                let headers = d.data[0];
+                let monthIdx = headers.indexOf("महिना");
+                let yearIdx = headers.indexOf("वर्ष");
+
+                let filteredData = [headers];
+                
+                // Filter by selected Month and Year
+                for(let i = 1; i < d.data.length; i++) {
+                    let row = d.data[i];
+                    let matchMonth = (selMonth === "सर्व" || row[monthIdx] === selMonth);
+                    let matchYear = (selYear === "सर्व" || row[yearIdx] == String(selYear));
+                    
+                    if(matchMonth && matchYear) {
+                        filteredData.push(row);
+                    }
+                }
+
+                if(filteredData.length > 1) {
+                    currentReportData = filteredData;
+                    currentReportName = d.formName;
+                    renderTable(filteredData, selMonth, selYear);
+                    document.getElementById('reportContentArea').classList.remove('hidden');
+                } else {
+                    alert("निवडलेल्या महिना आणि वर्षासाठी कोणताही डेटा उपलब्ध नाही.");
+                }
             } else {
                 alert("अद्याप कोणतीही माहिती उपलब्ध नाही.");
             }
@@ -272,39 +321,92 @@
         }
     }
 
-    function renderTable(data) {
+    // --- Professional Table Rendering in App ---
+    function renderTable(data, month, year) {
         let table = document.getElementById('reportTable');
-        table.innerHTML = "";
-        let html = "";
-        data.forEach((row, index) => {
+        let periodText = (month === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${month} ${year}`;
+        let colCount = data[0].length;
+        
+        let html = `
+            <thead>
+                <tr><th colspan="${colCount}" style="font-size:20px; background:var(--primary); color:white;">${currentReportName}</th></tr>
+                <tr><th colspan="${colCount}" style="font-size:14px; background:#e9ecef; color:#333; border-bottom:3px solid var(--primary);">उपकेंद्र: ${user.subcenter} | अहवाल महिना: ${periodText}</th></tr>
+                <tr>
+        `;
+        
+        // Add actual headers
+        data[0].forEach(cell => {
+            if(cell !== "मूळ डेटा (JSON)") { // Hide JSON column in UI
+                html += `<th style="background:#f4b400; color:#000; border:1px solid #ddd; font-size:13px;">${cell}</th>`;
+            }
+        });
+        html += `</tr></thead><tbody>`;
+        
+        // Add data
+        for(let i=1; i<data.length; i++) {
             html += "<tr>";
-            row.forEach(cell => {
-                if(index === 0) html += `<th>${cell}</th>`; // हेडिंग्स
-                else html += `<td>${cell}</td>`; // डेटा
+            data[i].forEach((cell, index) => {
+                if(data[0][index] !== "मूळ डेटा (JSON)") {
+                    html += `<td>${cell}</td>`;
+                }
             });
             html += "</tr>";
-        });
+        }
+        html += "</tbody>";
         table.innerHTML = html;
     }
 
-    // Excel CSV डाऊनलोड फंक्शन
-    function downloadCSV() {
+    // --- Advanced Excel Export (HTML to .xls) ---
+    function downloadExcel() {
         if(currentReportData.length === 0) return;
-        let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // UTF-8 BOM for Marathi
-        currentReportData.forEach(rowArray => {
-            let row = rowArray.map(str => `"${String(str).replace(/"/g, '""')}"`).join(",");
-            csvContent += row + "\r\n";
+        
+        let month = document.getElementById('reportMonth').value;
+        let year = document.getElementById('reportYear').value;
+        let periodText = (month === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${month} ${year}`;
+        let colCount = currentReportData[0].length - 1; // Exclude JSON column
+
+        // Construct HTML Table for Excel
+        let tableHTML = `<table border="1" style="border-collapse: collapse; font-family: Arial, sans-serif;">`;
+        
+        // Header Row 1: Report Name (Merged, Bold, Colored)
+        tableHTML += `<tr><th colspan="${colCount}" style="background-color: #00705a; color: #ffffff; font-size: 22px; padding: 15px; text-align: center; font-weight: bold;">${currentReportName}</th></tr>`;
+        
+        // Header Row 2: Subcenter & Month/Year
+        tableHTML += `<tr><th colspan="${colCount}" style="background-color: #e9ecef; color: #000000; font-size: 16px; padding: 10px; text-align: center; font-weight: bold;">उपकेंद्र: ${user.subcenter}   |   अहवाल महिना: ${periodText}</th></tr>`;
+
+        // Data Rows
+        currentReportData.forEach((row, index) => {
+            tableHTML += "<tr>";
+            row.forEach((cell, cellIndex) => {
+                if(currentReportData[0][cellIndex] !== "मूळ डेटा (JSON)") {
+                    if(index === 0) {
+                        tableHTML += `<th style="background-color: #f4b400; color: #000000; font-weight: bold; padding: 8px;">${cell}</th>`; 
+                    } else {
+                        tableHTML += `<td style="padding: 5px;">${cell}</td>`; 
+                    }
+                }
+            });
+            tableHTML += "</tr>";
         });
-        var encodedUri = encodeURI(csvContent);
-        var link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", currentReportName + "_" + new Date().toLocaleDateString() + ".csv");
+        tableHTML += `</table>`;
+
+        // Convert to Excel format
+        let uri = 'data:application/vnd.ms-excel;base64,';
+        let template = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"></head><body>{table}</body></html>';
+        
+        let base64 = function(s) { return window.btoa(unescape(encodeURIComponent(s))) };
+        let format = function(s, c) { return s.replace(/{(\w+)}/g, function(m, p) { return c[p]; }) };
+        
+        let ctx = {worksheet: 'Report Data', table: tableHTML};
+        let link = document.createElement("a");
+        link.href = uri + base64(format(template, ctx));
+        link.download = `${currentReportName}_${periodText}.xls`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     }
 
-    // --- Admin Form Builder Logic (आधीप्रमाणेच) ---
+    // --- Admin & Data Entry Functions (Same as before) ---
     function renderFormsListForEdit() {
         const listDiv = document.getElementById('formsEditList');
         listDiv.innerHTML = "";
