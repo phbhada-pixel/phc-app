@@ -51,7 +51,6 @@ button:disabled { background: #ccc !important; color: #666 !important; cursor: n
   .mobile-hide { display: none !important; }
 }
 
-/* 🟢 NEW: Field ID Badge Style - High Contrast & Dark Black */
 .fid-badge {
     background: #ffeb3b !important;
     color: #000000 !important;
@@ -66,22 +65,41 @@ button:disabled { background: #ccc !important; color: #666 !important; cursor: n
     border: 1px solid #000;
     z-index: 10;
 }
+
+/* 🟢 NEW: Initial Loader Style */
+#initialLoader {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: white;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+.spinner {
+    border: 6px solid #f3f3f3;
+    border-top: 6px solid var(--primary);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
 
-<div id="lockScreen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#0f1c24; z-index:9999; display:flex; justify-content:center; align-items:center;">
-<div style="background:white; padding:30px; border-radius:10px; width:85%; max-width:350px;">
-<h3>Security Access</h3>
-<input type="password" id="sitePass" placeholder="Enter Password (1234)">
-<button class="btn-primary" onclick="unlockApp()">Unlock</button>
-</div>
+<div id="initialLoader">
+    <div class="spinner"></div>
+    <h3 style="color: var(--primary);">डेटा लोड होत आहे, कृपया प्रतीक्षा करा...</h3>
 </div>
 
 <div class="container hidden" id="mainApp">
 <div id="netStatus" class="status-bar online">Online</div>
 
-<div id="loginBox">
+<div id="loginBox" class="hidden">
 <h3>कर्मचारी लॉगिन</h3>
 <input type="tel" id="mob" placeholder="मोबाईल नंबर">
 <input type="password" id="pwd" placeholder="वैयक्तिक पासवर्ड">
@@ -268,7 +286,6 @@ button:disabled { background: #ccc !important; color: #666 !important; cursor: n
 </div>
 
 </div>
-</div>
 
 <script>
 // 🌟 Configuration 🌟
@@ -283,6 +300,21 @@ let user = null;
 let currentReports = [];
 let isSaving = false;
 let globalFieldCounter = 1;
+
+// 🟢 NEW: Smart Init Logic
+window.onload = async function() {
+    await fetchData(); 
+    document.getElementById('initialLoader').style.display = 'none'; // Hide loader
+    document.getElementById('mainApp').classList.remove('hidden'); // Show app
+
+    const savedUser = localStorage.getItem("phc_user_session");
+    if(savedUser) { 
+        user = JSON.parse(savedUser); 
+        showAppAfterLogin(); 
+    } else {
+        document.getElementById('loginBox').classList.remove('hidden');
+    }
+};
 
 function isMobile() { return window.innerWidth <= 768; }
 
@@ -453,22 +485,22 @@ if (f.type === 'number' && f.range) {
 let r = String(f.range).trim();
 if (r.startsWith('<=')) {
 let max = Number(r.replace('<=', '').trim());
-rangeAttr = ` max="${max}" title="कृपया ${max} किंवा त्यापेक्षा कमी संख्या टाका" onchange="if(this.value && Number(this.value) > ${max}) { alert('⚠️ कृपया ${max} किंवा त्यापेक्षा कमी संख्या टाका'); this.value=''; processAllLogic('${areaId}'); }"`;
+rangeAttr = ` max="${max}" title="कृपया ${max} किंवा त्यापेक्षा कमी संख्या टाका" onchange="if(this.value && Number(this.value) > ${max}) { this.value=''; processAllLogic('${areaId}'); }"`;
 } else if (r.startsWith('<')) {
 let max = Number(r.replace('<', '').trim());
-rangeAttr = ` max="${max-1}" title="कृपया ${max} पेक्षा कमी संख्या टाका" onchange="if(this.value && Number(this.value) >= ${max}) { alert('⚠️ कृपया ${max} पेक्षा कमी संख्या टाका'); this.value=''; processAllLogic('${areaId}'); }"`;
+rangeAttr = ` max="${max-1}" title="कृपया ${max} पेक्षा कमी संख्या टाका" onchange="if(this.value && Number(this.value) >= ${max}) { this.value=''; processAllLogic('${areaId}'); }"`;
 } else if (r.startsWith('>=')) {
 let min = Number(r.replace('>=', '').trim());
-rangeAttr = ` min="${min}" title="कृपया ${min} किंवा त्यापेक्षा जास्त संख्या टाका" onchange="if(this.value && Number(this.value) < ${min}) { alert('⚠️ कृपया ${min} किंवा त्यापेक्षा जास्त संख्या टाका'); this.value=''; processAllLogic('${areaId}'); }"`;
+rangeAttr = ` min="${min}" title="कृपया ${min} किंवा त्यापेक्षा जास्त संख्या टाका" onchange="if(this.value && Number(this.value) < ${min}) { this.value=''; processAllLogic('${areaId}'); }"`;
 } else if (r.startsWith('>')) {
 let min = Number(r.replace('>', '').trim());
-rangeAttr = ` min="${min+1}" title="कृपया ${min} पेक्षा जास्त संख्या टाका" onchange="if(this.value && Number(this.value) <= ${min}) { alert('⚠️ कृपया ${min} पेक्षा जास्त संख्या टाका'); this.value=''; processAllLogic('${areaId}'); }"`;
+rangeAttr = ` min="${min+1}" title="कृपया ${min} पेक्षा जास्त संख्या टाका" onchange="if(this.value && Number(this.value) <= ${min}) { this.value=''; processAllLogic('${areaId}'); }"`;
 } else if (r.includes('-')) {
 let parts = r.split('-');
 if(parts.length === 2) {
 let min = parts[0].trim();
 let max = parts[1].trim();
-rangeAttr = ` min="${min}" max="${max}" title="कृपया ${min} ते ${max} च्या दरम्यानची संख्या टाका" onchange="if(this.value && (Number(this.value) < ${min} || Number(this.value) > ${max})) { alert('⚠️ कृपया ${min} ते ${max} च्या दरम्यानची संख्या टाका'); this.value=''; processAllLogic('${areaId}'); }"`;
+rangeAttr = ` min="${min}" max="${max}" title="कृपया ${min} ते ${max} च्या दरम्यानची संख्या टाका" onchange="if(this.value && (Number(this.value) < ${min} || Number(this.value) > ${max})) { this.value=''; processAllLogic('${areaId}'); }"`;
 }
 }
 }
@@ -780,18 +812,6 @@ return formData;
 }
 
 // --- Core Logic ---
-async function unlockApp() {
-if(document.getElementById('sitePass').value === "1234") {
-document.getElementById('lockScreen').classList.add('hidden');
-document.getElementById('mainApp').classList.remove('hidden');
-document.getElementById('netStatus').innerText = "डेटा लोड होत आहे...";
-await fetchData();
-document.getElementById('netStatus').innerText = "Online";
-const savedUser = localStorage.getItem("phc_user_session");
-if(savedUser) { user = JSON.parse(savedUser); showAppAfterLogin(); }
-} else { alert("चुकीचा पासवर्ड!"); }
-}
-
 async function fetchData() {
 try {
 const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"getInitialData"}) });
@@ -1029,7 +1049,7 @@ let availableVillages = Array.from(document.getElementById('selVillage').options
 .filter(v => v !== "" && v !== "ALL_VILLAGES");
 
 if (availableVillages.length === 0 && isBulk) {
-area.innerHTML = "<p style='color:green; text-align:center; font-weight:bold; font-size:18px;'>🎉 अभिनंदन! या महिन्यासाठी सर्व गावांचा डेटा आधीच भरून पूर्ण झाला आहे!</p>";
+area.innerHTML = "<p style='color:green; text-align:center; font-weight:bold; font-size:18px;'>🎉 अभिनंदन! या महिन्यासाठी सर्व गावांचा डेटा आधीच भरून पूर्ण झालाاکی आहे!</p>";
 return;
 }
 
@@ -2276,7 +2296,6 @@ let fileName = `मासिक_अहवाल_${user.subcenter}_${periodText}.
 XLSX.writeFile(wb, fileName);
 }
 
-// --- Admin Form Builder Logic ---
 function toggleRoles(checkbox) {
 document.getElementById('specificRoles').style.display = checkbox.checked ? 'none' : 'block';
 if(checkbox.checked) {
@@ -2305,7 +2324,7 @@ document.getElementById('roleAll').checked = true;
 toggleRoles(document.getElementById('roleAll'));
 
 document.getElementById('fieldsList').innerHTML = "";
-globalFieldCounter = 1; // Reset counter for new form
+globalFieldCounter = 1; 
 document.getElementById('mainActionBtn').innerText = "फॉर्म सेव्ह करा";
 document.getElementById('mainActionBtn').onclick = saveFullForm;
 }
@@ -2357,7 +2376,6 @@ cb.checked = roles.includes(cb.value.toUpperCase());
 
 document.getElementById('fieldsList').innerHTML = "";
 
-// Find max field ID to resume counter
 let maxFid = 0;
 JSON.parse(f.StructureJSON).forEach(field => {
     if(field.fid) { let num = parseInt(field.fid.replace('f_','')); if(num > maxFid) maxFid = num; }
