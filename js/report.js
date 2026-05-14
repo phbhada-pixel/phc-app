@@ -1,4 +1,6 @@
-// 🟢 PENDING REPORT LOGIC
+// 🟢 JS/REPORT.JS - उपकेंद्र फिल्टर (Subcenter Filter) सह
+
+// 🟢 PENDING REPORT LOGIC (उपकेंद्र फिल्टरसह)
 function generatePendingReport() {
     const selMonth = document.getElementById('reportMonth').value;
     const selYear = document.getElementById('reportYear').value;
@@ -7,8 +9,10 @@ function generatePendingReport() {
     if (selMonth === "सर्व" || selYear === "सर्व") { alert("विशिष्ट 'महिना' आणि 'वर्ष' निवडा!"); return; }
 
     let groupedData = {}; 
-    let filterRole = "सर्व";
-    if (document.getElementById('reportRoleFilter')) { filterRole = document.getElementById('reportRoleFilter').value; }
+    
+    // 🟢 नवीन: उपकेंद्र फिल्टर घेणे
+    let filterSubCenter = "सर्व";
+    if (document.getElementById('reportSubCenterFilter')) { filterSubCenter = document.getElementById('reportSubCenterFilter').value; }
 
     let formsToCheck = masterData.forms.filter(f => !isFormInactive(f));
     if(reportFormSelect !== "ALL" && reportFormSelect !== "") { formsToCheck = formsToCheck.filter(f => f.FormID === reportFormSelect); }
@@ -21,7 +25,9 @@ function generatePendingReport() {
         masterData.users.forEach(u => {
             let isAdmin = (user.role === "Admin" || user.role === "VIEWER" || user.role === "MANAGER");
             if (!isAdmin && String(u.mobile).trim() !== String(user.mobile).trim()) return;
-            if (isAdmin && filterRole !== "सर्व" && u.role !== filterRole) return;
+            
+            // 🟢 नवीन: उपकेंद्र फिल्टर तपासणे
+            if (isAdmin && filterSubCenter !== "सर्व" && String(u.subcenter).trim() !== filterSubCenter) return;
 
             if (isAllForm || allowedRoles.includes(u.role)) {
                 let userVillages = masterData.villages.filter(v => String(v.SubCenterID).trim().toLowerCase() === String(u.subcenter).trim().toLowerCase());
@@ -122,14 +128,46 @@ function getProgressiveTargetMonthsAndYears(selM, selY) {
     return result;
 }
 
-// 🟢 REPORT FETCHING LOGIC
+// 🟢 नवीन: अहवाल उघडताना उपकेंद्रांची यादी (Dropdown) तयार करणे
+function updateReportSubCenterDropdown() {
+    let scFilter = document.getElementById('reportSubCenterFilter');
+    if(!scFilter || !masterData || !masterData.subCenters) return;
+    
+    // फक्त एकदाच लोड व्हावे म्हणून जुने ऑप्शन काढणे
+    scFilter.innerHTML = '<option value="सर्व">सर्व उपकेंद्र (All Sub-centers)</option>';
+    
+    let uniqueSCs = new Set();
+    masterData.subCenters.forEach(sc => uniqueSCs.add(String(sc.SubCenterName).trim()));
+    masterData.villages.forEach(v => uniqueSCs.add(String(v.SubCenterID).trim()));
+    
+    Array.from(uniqueSCs).filter(s => s && s !== "undefined").sort().forEach(scName => {
+        scFilter.innerHTML += `<option value="${scName}">${scName}</option>`;
+    });
+}
+
+// जेव्हा टॅब बदलतो तेव्हा हे फंक्शन कॉल होते, आपण इथे ड्रॉपडाऊन पॉप्युलेट करूया
+const originalSwitchTab = window.switchTab;
+window.switchTab = function(tab) {
+    if(originalSwitchTab) originalSwitchTab(tab);
+    if(tab === 'reports') { updateReportSubCenterDropdown(); }
+};
+
+// 🟢 REPORT FETCHING LOGIC (उपकेंद्र फिल्टरसह)
 async function fetchReportData() {
     const formID = document.getElementById('reportFormSelect').value; const selMonth = document.getElementById('reportMonth').value; const selYear = document.getElementById('reportYear').value;
     if(!formID) { alert("कृपया अहवाल निवडा"); return; }
-    let filterRole = "सर्व"; if((user.role === "Admin" || user.role === "VIEWER" || user.role === "MANAGER") && document.getElementById('reportRoleFilter')) { filterRole = document.getElementById('reportRoleFilter').value; }
+    
+    // 🟢 नवीन: उपकेंद्र फिल्टर घेणे
+    let filterSubCenter = "सर्व"; 
+    if((user.role === "Admin" || user.role === "VIEWER" || user.role === "MANAGER") && document.getElementById('reportSubCenterFilter')) { 
+        filterSubCenter = document.getElementById('reportSubCenterFilter').value; 
+    }
+    
     document.getElementById('reportLoader').style.display = "block"; document.getElementById('reportContentArea').classList.add('hidden'); document.getElementById('reportTableContainer').innerHTML = "";
     try {
-        const payload = { formID: formID, role: user.role, subcenter: user.subcenter, mobileNo: user.mobile, filterRole: filterRole };
+        // 🟢 payload मध्ये filterSubCenter पाठवणे
+        const payload = { formID: formID, role: user.role, subcenter: user.subcenter, mobileNo: user.mobile, filterSubCenter: filterSubCenter, month: selMonth, year: selYear };
+        
         const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"getReportData", payload}) });
         const textResponse = await r.text(); const d = JSON.parse(textResponse);
         document.getElementById('reportLoader').style.display = "none";
@@ -181,11 +219,10 @@ async function fetchReportData() {
     } catch(e) { document.getElementById('reportLoader').style.display = "none"; alert("एरर: " + e.message); }
 }
 
-// 🟢 RENDER TABLES (Handles 3 Grouping Types)
+// 🟢 RENDER TABLES
 function renderMultipleTables(reports, month, year) {
     let container = document.getElementById('reportTableContainer');
     
-    // 🟢 Grouping Type Check
     let groupType = "Village";
     if (user.role === 'Admin' || user.role === 'MANAGER' || user.role === 'VIEWER') {
         groupType = document.getElementById('reportGroupFilter') ? document.getElementById('reportGroupFilter').value : "Village";
@@ -205,7 +242,6 @@ function renderMultipleTables(reports, month, year) {
         
         let dataRows = data.slice(1);
         
-        // 🟢 SubCenter Aggregation (Runs for both SubCenter and SubCenterConsolidated)
         if ((groupType === "SubCenter" || groupType === "SubCenterConsolidated") && !isList) {
             let aggregated = {};
             dataRows.forEach(row => {
@@ -261,7 +297,6 @@ function renderMultipleTables(reports, month, year) {
                 let r1Html = "", r2Html = "";
 
                 if (groupType === "SubCenterConsolidated") {
-                    // 🟢 Consolidated Flat Header Format
                     r1Html = `<tr><th style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:0; z-index:2;">अ.क्र.</th><th style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:45px; z-index:2;">तपशील / प्रश्न</th>`;
                     gRows.forEach((row) => {
                         let vName = row[subCenterIdx] || "-";
@@ -271,7 +306,6 @@ function renderMultipleTables(reports, month, year) {
                     if (isProgressive) { r1Html += `<th style="background:#81c784; color:#000; border:1px solid #ddd; text-align:center;">एकूण/मासिक</th><th style="background:#81c784; color:#000; border:1px solid #ddd; text-align:center;">एकूण/प्रगत</th></tr>`; } 
                     else { r1Html += `<th style="background:#81c784; color:#000; border:1px solid #ddd; text-align:center;">एकूण</th></tr>`; }
                 } else {
-                    // 🟢 Standard Merged Header Format
                     r1Html = `<tr><th ${isProgressive ? 'rowspan="2"' : ''} style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:0; z-index:2;">अ.क्र.</th><th ${isProgressive ? 'rowspan="2"' : ''} style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:45px; z-index:2;">तपशील / प्रश्न</th>`;
                     r2Html = isProgressive ? `<tr>` : "";
                     gRows.forEach((row) => {
@@ -319,20 +353,23 @@ function renderMultipleTables(reports, month, year) {
     container.innerHTML = html;
 }
 
-// 🟢 DOWNLOAD EXCEL (Handles all Grouping formats)
+// 🟢 DOWNLOAD EXCEL (उपकेंद्र फिल्टरसह)
 function downloadConsolidatedExcel() {
     if(currentReports.length === 0) return;
     
     let groupType = "Village";
+    let filterSubCenter = "सर्व";
+    
     if (user.role === 'Admin' || user.role === 'MANAGER' || user.role === 'VIEWER') {
         groupType = document.getElementById('reportGroupFilter') ? document.getElementById('reportGroupFilter').value : "Village";
+        filterSubCenter = document.getElementById('reportSubCenterFilter') ? document.getElementById('reportSubCenterFilter').value : "सर्व";
     }
 
     let wb = XLSX.utils.book_new();
     let month = document.getElementById('reportMonth').value; let year = document.getElementById('reportYear').value;
-    let filterRole = document.getElementById('reportRoleFilter') ? document.getElementById('reportRoleFilter').value : "सर्व";
+    
     let periodText = (month === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${month} ${year}`;
-    if((user.role === 'Admin' || user.role === 'VIEWER' || user.role === 'MANAGER') && filterRole !== 'सर्व') periodText += ` (${filterRole})`;
+    if((user.role === 'Admin' || user.role === 'VIEWER' || user.role === 'MANAGER') && filterSubCenter !== 'सर्व') periodText += ` (${filterSubCenter})`;
 
     currentReports.forEach((rep, index) => {
         let headers = rep.data[0]; let showIndices = []; 
@@ -344,7 +381,6 @@ function downloadConsolidatedExcel() {
         const formType = formObj ? String(formObj.FormType).trim() : "";
         const isStats = formType.includes('Stats'); const isProgressive = formType.includes('ProgressiveStats'); const isVertical = formType.includes('Vertical'); const isList = formType.includes('List');
 
-        // 🟢 SubCenter Aggregation
         if ((groupType === "SubCenter" || groupType === "SubCenterConsolidated") && !isList) {
             let aggregated = {};
             dataRows.forEach(row => {
@@ -373,7 +409,6 @@ function downloadConsolidatedExcel() {
 
         if (isVertical) {
             if (groupType === "SubCenterConsolidated") {
-                // 🟢 Consolidated Flat Headers
                 let verticalHeaders = ["अ.क्र.", "तपशील / प्रश्न"];
                 dataRows.forEach(r => {
                     let name = r[subCenterIdx] || "-";
@@ -395,7 +430,6 @@ function downloadConsolidatedExcel() {
                     sheetData.push(rowData);
                 });
             } else {
-                // 🟢 Standard Merged Headers
                 let verticalColCount = 2 + (dataRows.length * (isProgressive ? 2 : 1)) + (isProgressive ? 2 : 1);
                 merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: verticalColCount - 1 } });
                 
@@ -427,7 +461,6 @@ function downloadConsolidatedExcel() {
                 });
             }
         } else {
-            // 🟢 Horizontal Headers
             let modifiedHeaders = ["अ.क्र."];
             if (isList) { if (subCenterIdx > -1) modifiedHeaders.push("उपकेंद्र"); if (villageIdx > -1) modifiedHeaders.push("गाव"); } 
             else { if (groupType !== "Village") modifiedHeaders.push("उपकेंद्र"); else modifiedHeaders.push("गाव"); }
@@ -455,7 +488,6 @@ function downloadConsolidatedExcel() {
             }
         }
 
-        // 🟢 Excel Styling
         let ws = XLSX.utils.aoa_to_sheet(sheetData); ws["!merges"] = merges;
         for(let R=0; R<sheetData.length; R++) {
             for(let C=0; C<200; C++) { 
