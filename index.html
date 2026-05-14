@@ -244,6 +244,47 @@
     <script src="js/edit.js?v=31"></script>
     <script src="js/report.js?v=31"></script>
     <script src="js/admin.js?v=31"></script>
+    <script>
+      window.addEventListener('load', () => {
+          setTimeout(() => {
+              const today = new Date();
+              // जावास्क्रिप्टमध्ये महिन्यांची यादी (० ते ११)
+              const marathiMonths = ["जानेवारी", "फेब्रुवारी", "मार्च", "एप्रिल", "मे", "जून", "जुलै", "ऑगस्ट", "सप्टेंबर", "ऑक्टोबर", "नोव्हेंबर", "डिसेंबर"];
+              
+              const currentMonth = marathiMonths[today.getMonth()]; // चालू महिना (उदा. 'मे')
+              const currentYear = today.getFullYear().toString(); // चालू वर्ष (उदा. '2026')
+              const currentFortnight = today.getDate() <= 15 ? "१ ते १५" : "१६ ते अखेर"; // चालू पंधरवडा
+
+              // १. डेटा एंट्री, एडिट आणि रिपोर्टचे महिने आपोआप सेट करा
+              ['selMonth', 'editMonth', 'reportMonth'].forEach(id => {
+                  let el = document.getElementById(id);
+                  if(el) el.value = currentMonth;
+              });
+
+              // २. चालू वर्ष आपोआप सेट करा
+              ['selYear', 'editYear', 'reportYear'].forEach(id => {
+                  let el = document.getElementById(id);
+                  if(el) {
+                      if(!el.querySelector(`option[value="${currentYear}"]`)) {
+                          el.innerHTML += `<option value="${currentYear}">${currentYear}</option>`;
+                      }
+                      el.value = currentYear;
+                  }
+              });
+
+              // ३. चालू पंधरवडा आपोआप सेट करा
+              ['selFortnight', 'editFortnight', 'reportFortnight'].forEach(id => {
+                  let el = document.getElementById(id);
+                  if(el) el.value = currentFortnight;
+              });
+
+              // बदल झाल्यानंतर गावे आणि फॉर्म्सची यादी अपडेट (Refresh) करा
+              if(typeof updateFormDropdowns === "function") updateFormDropdowns();
+              if(typeof updateVillageDropdown === "function") updateVillageDropdown();
+              if(typeof updateEditVillageDropdown === "function") updateEditVillageDropdown();
+          }, 800); // ॲप चालू झाल्यावर एका सेकंदाच्या आत हे काम होईल
+      });
+    </script>
 
     <script>
       if ('serviceWorker' in navigator) {
