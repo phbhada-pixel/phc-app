@@ -1,4 +1,4 @@
-// 🟢 JS/ENTRY.JS - Auto-fill Population (लोकसंख्या) & Houses (घर संख्या) सह
+// 🟢 JS/ENTRY.JS - लोकसंख्या Lock आणि भरलेले गाव लपवणे (Hide Filled Villages) सह
 
 function isFormFilledForVillage(formObj, vName, month, year) {
     const serverHistory = masterData.filledStats || [];
@@ -103,14 +103,15 @@ function updateVillageDropdown() {
         }
     }
 
-    vSel.innerHTML += '<option value="ALL_VILLAGES" style="font-weight:bold; color:#0056b3;">🏢 सर्व गावे एकत्रित भरा (Bulk Entry)</option>';
+    let addedVillagesCount = 0;
+    let htmlOptions = "";
 
     masterData.villages.filter(v => {
         const belongsToSubCenter = String(v.SubCenterID).trim().toLowerCase() === String(user.subcenter).trim().toLowerCase() || String(v.SubCenterID).trim().toLowerCase() === "all";
         if(!belongsToSubCenter) return false;
 
         if (fId === "ALL_STATS") {
-            let statsForms = masterData.forms.filter(f => String(f.FormType).trim().includes('Stats'));
+            let statsForms = masterData.forms.filter(f => String(f.FormType).trim() !== 'List');
             let userRole = user ? String(user.role).trim().toUpperCase() : "";
 
             let isFullyFilled = true;
@@ -127,12 +128,24 @@ function updateVillageDropdown() {
             return !isFullyFilled;
         } else {
             const selectedForm = masterData.forms.find(f => f.FormID === fId);
-            if(selectedForm && String(selectedForm.FormType).trim().includes('Stats')) {
-                if (isFormFilledForVillage(selectedForm, v.VillageName, month, year)) return false;
+            // 🟢 नवीन बदल: List प्रकार सोडून इतर सर्व अहवालांसाठी भरलेले गाव यादीतून गायब करणे
+            if(selectedForm && String(selectedForm.FormType).trim() !== 'List') {
+                if (isFormFilledForVillage(selectedForm, v.VillageName, month, year)) {
+                    return false; 
+                }
             }
         }
         return true;
-    }).forEach(v => { vSel.innerHTML += `<option value="${v.VillageName}">${v.VillageName}</option>`; });
+    }).forEach(v => { 
+        htmlOptions += `<option value="${v.VillageName}">${v.VillageName}</option>`; 
+        addedVillagesCount++;
+    });
+
+    // 🟢 जर एक तरी गाव शिल्लक असेल, तरच Bulk Entry चा पर्याय दाखवा
+    if(addedVillagesCount > 0) {
+        vSel.innerHTML += '<option value="ALL_VILLAGES" style="font-weight:bold; color:#0056b3;">🏢 सर्व गावे एकत्रित भरा (Bulk Entry)</option>';
+        vSel.innerHTML += htmlOptions;
+    }
 
     loadDynamicFields();
 }
@@ -152,6 +165,18 @@ function loadDynamicFields() {
     if(!fId) {
         if(document.getElementById('fortnightDiv')) document.getElementById('fortnightDiv').style.display = 'none';
         return;
+    }
+
+    // 🟢 जर सर्व गावे भरून झाली असतील तर अभिनंदन मेसेज दाखवणे
+    let availableVillages = Array.from(document.getElementById('selVillage').options).map(o => o.value).filter(v => v !== "" && v !== "ALL_VILLAGES");
+    
+    if (availableVillages.length === 0 && fId) {
+        const selectedForm = masterData.forms.find(x => x.FormID === fId);
+        if (selectedForm && String(selectedForm.FormType).trim() !== 'List') {
+            area.innerHTML = "<p style='color:green; text-align:center; font-weight:bold; font-size:18px; padding:20px; border:2px solid green; border-radius:8px; background:#e8f5e9;'>🎉 उत्कृष्ट! या महिन्यासाठी या अहवालाची सर्व गावे भरून पूर्ण झाली आहेत.</p>";
+            document.getElementById('mainSaveBtn').style.display = 'none'; 
+            return;
+        }
     }
 
     const selectedForm = masterData.forms.find(x => x.FormID === fId);
@@ -194,15 +219,9 @@ function loadDynamicFields() {
     document.getElementById('mainSaveBtn').style.display = 'block';
 
     let isBulk = (vId === "ALL_VILLAGES");
-    let availableVillages = Array.from(document.getElementById('selVillage').options).map(o => o.value).filter(v => v !== "" && v !== "ALL_VILLAGES");
-
-    if (availableVillages.length === 0 && isBulk) {
-        area.innerHTML = "<p style='color:green; text-align:center; font-weight:bold; font-size:18px;'>🎉 अभिनंदन! या महिन्यासाठी सर्व गावांचा डेटा भरून पूर्ण झाला आहे!</p>";
-        document.getElementById('mainSaveBtn').style.display = 'none'; return;
-    }
 
     if (fId === "ALL_STATS") {
-        let statsForms = masterData.forms.filter(f => String(f.FormType).trim().includes('Stats'));
+        let statsForms = masterData.forms.filter(f => String(f.FormType).trim() !== 'List');
         let allHtml = "";
         let userRole = user ? String(user.role).trim().toUpperCase() : "";
         let renderedFormsCount = 0;
@@ -220,7 +239,6 @@ function loadDynamicFields() {
                     let formContainerId = `form_area_${f.FormID}`;
                     allHtml += `<div id="${formContainerId}" style="margin-bottom: 30px; border: 2px solid #00705a; padding: 0; border-radius: 8px; background: #fdfdfd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow:hidden;">`;
                     allHtml += `<h3 style="background: #00705a; color: white; padding: 10px; margin: 0;">📌 ${f.FormName}</h3>`;
-                    // 🟢 vName (गावाचे नाव) HTML बनवताना पुढे पाठवणे
                     if(isBulk) { allHtml += generateBulkTableHTML(f, formSpecificVillages, f.FormID); } 
                     else { allHtml += `<div style="padding:15px;">` + generateFormHTML(f, f.FormID, formContainerId, vId) + `</div>`; }
                     allHtml += `</div>`;
@@ -228,11 +246,7 @@ function loadDynamicFields() {
                 }
             }
         });
-
-        if (renderedFormsCount === 0) {
-            area.innerHTML = "<p style='color:green; text-align:center; font-weight:bold; font-size:18px;'>🎉 अभिनंदन! या महिन्यासाठी सर्व आकडेवारी फॉर्म्स पूर्ण झाले आहेत!</p>";
-            document.getElementById('mainSaveBtn').style.display = 'none';
-        } else { area.innerHTML = allHtml; }
+        area.innerHTML = allHtml; 
     } else {
         const f = masterData.forms.find(x => x.FormID === fId);
         if(!f) return;
@@ -240,17 +254,11 @@ function loadDynamicFields() {
         let formContainerId = `form_area_${f.FormID}`;
         let type = String(f.FormType).trim();
 
-        if (type.includes('Stats')) {
+        if (type !== 'List') {
             let formSpecificVillages = [];
             if(isBulk) { formSpecificVillages = availableVillages.filter(vName => !isFormFilledForVillage(f, vName, month, year)); } 
             else { if(!isFormFilledForVillage(f, vId, month, year)) formSpecificVillages.push(vId); }
 
-            if(formSpecificVillages.length === 0) {
-                area.innerHTML = "<p style='color:green; text-align:center; font-weight:bold; font-size:18px;'>🎉 अभिनंदन! या महिन्यासाठी हा फॉर्म भरून पूर्ण झाला आहे!</p>";
-                document.getElementById('mainSaveBtn').style.display = 'none'; return;
-            }
-
-            // 🟢 vName (गावाचे नाव) HTML बनवताना पुढे पाठवणे
             if(isBulk) { area.innerHTML = `<div id="${formContainerId}">` + generateBulkTableHTML(f, formSpecificVillages, f.FormID) + `</div>`; } 
             else { area.innerHTML = `<div id="${formContainerId}">` + generateFormHTML(f, "single", formContainerId, vId) + `</div>`; }
         } else {
@@ -375,32 +383,29 @@ function getFieldValueByFid(containerId, fid) {
     return '""'; 
 }
 
-// 🟢 नवीन बदल: लोकसंख्या आणि घर संख्या आपोआप भरण्यासाठी vName ऍड केले
+// 🟢 नवीन: लोकसंख्या/घर संख्या लॉक (Read-Only) करण्याची पद्धत
 function generateInputHTML(f, id, label, areaId, val="", vName="") {
     let html = "";
+    let lbl = String(label).trim();
+    let isAutoLockTarget = false;
     
-    // जर नवीन एंट्री असेल (edit_ ने सुरुवात नसेल) आणि व्हॅल्यू रिकामी असेल
+    // बॉक्स लोकसंख्येचा किंवा घर संख्येचा आहे का हे तपासणे
+    if (["लोकसंख्या", "एकूण लोकसंख्या", "गावची लोकसंख्या"].includes(lbl) || lbl.endsWith("लोकसंख्या")) isAutoLockTarget = true;
+    if (["घर संख्या", "एकूण घर संख्या", "घरांची संख्या", "एकूण घरे", "घरे"].includes(lbl) || lbl.endsWith("घर संख्या") || lbl.endsWith("घरांची संख्या") || lbl.endsWith("घरे")) isAutoLockTarget = true;
+
     if (val === "" && !id.startsWith('edit_')) {
         let autoVal = "";
-        
-        // मास्टर डेटामधून गावाची लोकसंख्या आणि घर संख्या शोधणे
         if (vName && masterData && masterData.villages) {
             let vObj = masterData.villages.find(v => String(v.VillageName).trim() === String(vName).trim());
             if (vObj) {
-                let lbl = String(label).trim();
-                
-                // लोकसंख्या चेक (फॉर्म्युला असेल तर ओव्हरराईट करू नये)
                 if (["लोकसंख्या", "एकूण लोकसंख्या", "गावची लोकसंख्या"].includes(lbl) || lbl.endsWith("लोकसंख्या")) {
                     autoVal = vObj["Papulation"] || vObj["Population"] || "";
                 } 
-                // घर संख्या चेक
                 else if (["घर संख्या", "एकूण घर संख्या", "घरांची संख्या", "एकूण घरे", "घरे"].includes(lbl) || lbl.endsWith("घर संख्या") || lbl.endsWith("घरांची संख्या") || lbl.endsWith("घरे")) {
                     autoVal = vObj["No Of Houses"] || "";
                 }
             }
         }
-        
-        // जर Auto-value मिळाली आणि त्या प्रश्नावर कुठलाही फॉर्म्युला नसेल, तर ती सेट करा
         if (autoVal !== "" && !f.formula) {
             val = autoVal;
         } else if (f.defaultValue !== undefined && f.defaultValue !== "") {
@@ -418,21 +423,34 @@ function generateInputHTML(f, id, label, areaId, val="", vName="") {
 
     let onEvent = `oninput="this.style.border=''; processAllLogic('${areaId}')" onchange="this.style.border=''; processAllLogic('${areaId}')"`;
 
+    // 🟢 ReadOnly (Lock) आणि रंग सेट करणे
+    let finalReadOnly = "";
+    let finalStyle = "";
+    let finalPlaceholder = "";
+
+    if (f.formula) {
+        finalReadOnly = "readonly";
+        finalStyle = "background:#e9ecef; font-weight:bold; color:var(--primary); cursor:not-allowed;";
+        finalPlaceholder = 'placeholder="Auto"';
+    } else if (isAutoLockTarget) {
+        finalReadOnly = "readonly";
+        finalStyle = "background:#e8f5e9; font-weight:bold; color:#155724; cursor:not-allowed;"; // लॉक केलेला हिरवट रंग
+        finalPlaceholder = 'placeholder="Auto"';
+    }
+
     if (f.type === 'dropdown') {
-        html += `<select id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${reqAttr} ${onEvent}><option value="">-- निवडा --</option>`;
+        html += `<select id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${reqAttr} ${onEvent} ${finalReadOnly ? 'style="pointer-events:none; background:#e8f5e9;" tabindex="-1"' : ''}><option value="">-- निवडा --</option>`;
         if(f.options) { f.options.split(',').forEach(opt => { let o = opt.trim(); let sel = (o === String(val).trim()) ? "selected" : ""; if(o) html += `<option value="${o}" ${sel}>${o}</option>`; }); }
         else if(f.range) { f.range.split(',').forEach(opt => { let o = opt.trim(); let sel = (o === String(val).trim()) ? "selected" : ""; if(o) html += `<option value="${o}" ${sel}>${o}</option>`; }); }
         html += `</select>`;
-    } else if(f.formula) {
-        html += `<input type="number" step="any" id="${id}" data-label="${label}" ${fidAttr} ${formulaAttr} value="${val}" readonly style="background:#e9ecef; font-weight:bold; color:var(--primary); cursor:not-allowed;" placeholder="Auto" ${onEvent}>`;
     } else if(f.type === 'number') {
-        html += `<input type="number" step="any" id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${rangeAttr} ${reqAttr} value="${val}" ${onEvent}>`;
+        html += `<input type="number" step="any" id="${id}" data-label="${label}" ${fidAttr} ${formulaAttr} ${depAttr} ${rangeAttr} ${reqAttr} value="${val}" ${finalReadOnly} style="${finalStyle}" ${finalPlaceholder} ${onEvent}>`;
     } else if(f.type === 'mobile') {
-        html += `<input type="tel" id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${reqAttr} value="${val}" maxlength="10" pattern="[0-9]{10}" placeholder="10 अंकी नंबर" oninput="this.value=this.value.replace(/[^0-9]/g,''); this.style.border=''; processAllLogic('${areaId}');" onchange="this.style.border=''; processAllLogic('${areaId}')">`;
+        html += `<input type="tel" id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${reqAttr} value="${val}" maxlength="10" pattern="[0-9]{10}" placeholder="10 अंकी नंबर" oninput="this.value=this.value.replace(/[^0-9]/g,''); this.style.border=''; processAllLogic('${areaId}');" onchange="this.style.border=''; processAllLogic('${areaId}')" ${finalReadOnly} style="${finalStyle}">`;
     } else if(f.type === 'date') {
-        html += `<input type="date" id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${reqAttr} value="${val}" ${onEvent}>`;
+        html += `<input type="date" id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${reqAttr} value="${val}" ${finalReadOnly} style="${finalStyle}" ${onEvent}>`;
     } else {
-        html += `<input type="text" id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${reqAttr} value="${val}" ${onEvent}>`;
+        html += `<input type="text" id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${reqAttr} value="${val}" ${finalReadOnly} style="${finalStyle}" ${onEvent}>`;
     }
     return html;
 }
@@ -462,7 +480,6 @@ function extractFieldsFromForm(f) {
     return fields;
 }
 
-// 🟢 vName पुढे पास करण्यासाठी बदल
 function generateFormHTML(f, prefix, areaId, vName="") {
     let html = "";
     JSON.parse(f.StructureJSON).forEach((field, i) => {
@@ -536,7 +553,6 @@ function generateTableHeaders(f) {
     return thead;
 }
 
-// 🟢 Bulk Entry मध्येही vName पुढे पास केले
 function generateBulkTableHTML(f, availableVillages, formPrefix) {
     if (isMobile()) {
         let html = "";
