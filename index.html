@@ -69,13 +69,23 @@
                 <div id="nilButtonContainer"></div>
 
                 <div class="row-flex" style="margin-top: 10px;">
-                    <div><label>महिना:</label><select id="selMonth" onchange="updateFormDropdowns(); updateVillageDropdown();">
+                    <div style="flex:1;"><label>महिना:</label><select id="selMonth" onchange="updateFormDropdowns(); updateVillageDropdown();">
                         <option value="जानेवारी">जानेवारी</option><option value="फेब्रुवारी">फेब्रुवारी</option><option value="मार्च">मार्च</option><option value="एप्रिल" selected>एप्रिल</option>
                         <option value="मे">मे</option><option value="जून">जून</option><option value="जुलै">जुलै</option><option value="ऑगस्ट">ऑगस्ट</option>
                         <option value="सप्टेंबर">सप्टेंबर</option><option value="ऑक्टोबर">ऑक्टोबर</option><option value="नोव्हेंबर">नोव्हेंबर</option><option value="डिसेंबर">डिसेंबर</option>
                     </select></div>
-                    <div><label>वर्ष:</label><select id="selYear" onchange="updateFormDropdowns(); updateVillageDropdown();"><option value="2025">2025</option><option value="2026" selected>2026</option></select></div>
+                    
+                    <div id="fortnightDiv" style="display:none; flex:1;">
+                        <label style="color:#d35400; font-weight:bold;">पंधरवडा:</label>
+                        <select id="selFortnight" onchange="updateVillageDropdown();" style="border:1px solid #d35400;">
+                            <option value="१ ते १५">१ ते १५</option>
+                            <option value="१६ ते अखेर">१६ ते अखेर</option>
+                        </select>
+                    </div>
+
+                    <div style="flex:1;"><label>वर्ष:</label><select id="selYear" onchange="updateFormDropdowns(); updateVillageDropdown();"><option value="2025">2025</option><option value="2026" selected>2026</option></select></div>
                 </div>
+                
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 10px;">
                     <label style="margin:0;">गाव निवडा:</label>
                 </div>
@@ -89,14 +99,23 @@
 
             <div id="editSection" class="hidden">
                 <h3>सबमिट केलेले फॉर्म एडिट करा</h3>
-                <select id="editFormSelect" onchange="updateEditVillageDropdown()"></select>
+                <select id="editFormSelect" onchange="updateEditVillageDropdown(); toggleEditFortnight();"></select>
                 <div class="row-flex" style="margin-top: 10px;">
-                    <div><label>महिना:</label><select id="editMonth" onchange="updateEditVillageDropdown()">
+                    <div style="flex:1;"><label>महिना:</label><select id="editMonth" onchange="updateEditVillageDropdown()">
                         <option value="जानेवारी">जानेवारी</option><option value="फेब्रुवारी">फेब्रुवारी</option><option value="मार्च">मार्च</option><option value="एप्रिल" selected>एप्रिल</option>
                         <option value="मे">मे</option><option value="जून">जून</option><option value="जुलै">जुलै</option><option value="ऑगस्ट">ऑगस्ट</option>
                         <option value="सप्टेंबर">सप्टेंबर</option><option value="ऑक्टोबर">ऑक्टोबर</option><option value="नोव्हेंबर">नोव्हेंबर</option><option value="डिसेंबर">डिसेंबर</option>
                     </select></div>
-                    <div><label>वर्ष:</label><select id="editYear" onchange="updateEditVillageDropdown()"><option value="2025">2025</option><option value="2026" selected>2026</option></select></div>
+                    
+                    <div id="editFortnightDiv" style="display:none; flex:1;">
+                        <label style="color:#d35400; font-weight:bold;">पंधरवडा:</label>
+                        <select id="editFortnight" onchange="updateEditVillageDropdown()" style="border:1px solid #d35400;">
+                            <option value="१ ते १५">१ ते १५</option>
+                            <option value="१६ ते अखेर">१६ ते अखेर</option>
+                        </select>
+                    </div>
+
+                    <div style="flex:1;"><label>वर्ष:</label><select id="editYear" onchange="updateEditVillageDropdown()"><option value="2025">2025</option><option value="2026" selected>2026</option></select></div>
                 </div>
                 <label>भरलेले गाव / रेकॉर्ड निवडा (फक्त मागील ४८ तासांतील):</label>
                 <select id="editVillageSelect"></select>
@@ -109,7 +128,6 @@
 
             <div id="reportsSection" class="hidden">
                 <h3>मासिक अहवाल डाउनलोड करा</h3>
-                
                 <div class="row-flex" id="adminRoleFilterDiv" style="margin-bottom: 15px; display: none; background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; gap: 15px; flex-wrap: wrap;">
                     <div style="flex: 1; min-width: 200px;">
                         <label style="font-weight:bold; color:#31708f;">कर्मचाऱ्याचे पद फिल्टर:</label>
@@ -131,16 +149,26 @@
                 </div>
 
                 <div class="row-flex" style="margin-bottom: 15px;">
-                    <div style="flex: 2;"><label>अहवाल निवडा:</label><select id="reportFormSelect"></select></div>
+                    <div style="flex: 2;"><label>अहवाल निवडा:</label><select id="reportFormSelect" onchange="toggleReportFortnight()"></select></div>
                 </div>
                 <div class="row-flex" style="margin-bottom: 15px;">
-                    <div><label>महिना:</label><select id="reportMonth">
+                    <div style="flex:1;"><label>महिना:</label><select id="reportMonth">
                         <option value="सर्व">सर्व महिने</option><option value="जानेवारी">जानेवारी</option><option value="फेब्रुवारी">फेब्रुवारी</option>
                         <option value="मार्च">मार्च</option><option value="एप्रिल" selected>एप्रिल</option>
                         <option value="मे">मे</option><option value="जून">जून</option><option value="जुलै">जुलै</option><option value="ऑगस्ट">ऑगस्ट</option>
                         <option value="सप्टेंबर">सप्टेंबर</option><option value="ऑक्टोबर">ऑक्टोबर</option><option value="नोव्हेंबर">नोव्हेंबर</option><option value="डिसेंबर">डिसेंबर</option>
                     </select></div>
-                    <div><label>वर्ष:</label><select id="reportYear"><option value="सर्व">सर्व वर्षे</option><option value="2025">2025</option><option value="2026" selected>2026</option></select></div>
+                    
+                    <div id="reportFortnightDiv" style="display:none; flex:1;">
+                        <label style="color:#d35400; font-weight:bold;">पंधरवडा:</label>
+                        <select id="reportFortnight" style="border:1px solid #d35400;">
+                            <option value="सर्व">सर्व पंधरवडे</option>
+                            <option value="१ ते १५">१ ते १५</option>
+                            <option value="१६ ते अखेर">१६ ते अखेर</option>
+                        </select>
+                    </div>
+
+                    <div style="flex:1;"><label>वर्ष:</label><select id="reportYear"><option value="सर्व">सर्व वर्षे</option><option value="2025">2025</option><option value="2026" selected>2026</option></select></div>
                 </div>
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
                     <button class="btn-report" style="flex:1;" onclick="fetchReportData()">अहवाल तयार करा 📊</button>
@@ -214,11 +242,11 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=30"></script>
-    <script src="js/entry.js?v=30"></script>
-    <script src="js/edit.js?v=30"></script>
-    <script src="js/report.js?v=30"></script>
-    <script src="js/admin.js?v=30"></script>
+    <script src="js/config.js?v=31"></script>
+    <script src="js/entry.js?v=31"></script>
+    <script src="js/edit.js?v=31"></script>
+    <script src="js/report.js?v=31"></script>
+    <script src="js/admin.js?v=31"></script>
 
     <script>
       if ('serviceWorker' in navigator) {
