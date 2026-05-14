@@ -110,7 +110,6 @@
             <div id="reportsSection" class="hidden">
                 <h3>मासिक अहवाल डाउनलोड करा</h3>
                 
-                <!-- 🟢 ॲडमिनसाठी खास लपवलेला (Hidden) डॅशबोर्ड -->
                 <div class="row-flex" id="adminRoleFilterDiv" style="margin-bottom: 15px; display: none; background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; gap: 15px; flex-wrap: wrap;">
                     <div style="flex: 1; min-width: 200px;">
                         <label style="font-weight:bold; color:#31708f;">कर्मचाऱ्याचे पद फिल्टर:</label>
@@ -121,7 +120,6 @@
                             <option value="CHO">फक्त CHO चा डेटा</option>
                         </select>
                     </div>
-                    <!-- 🟢 अहवाल गट निवड (फक्त ॲडमिनला दिसेल) -->
                     <div style="flex: 1; min-width: 200px;">
                         <label style="font-weight:bold; color:#31708f;">अहवाल गट (Grouping):</label>
                         <select id="reportGroupFilter" style="border: 1px solid #0056b3;">
@@ -182,15 +180,16 @@
                             <option value="Vertical" style="font-weight:bold; color:#0277bd;">उभा अहवाल (गावे आडव्या रांगेत)</option>
                         </select>
                     </div>
+
                     <div style="margin-top:10px; background:#f1f8e9; padding:10px; border-radius:5px; border:1px solid #c5e1a5;">
-    <label style="font-weight:bold; color:#33691e;">अहवाल कालावधी (Reporting Frequency):</label>
-    <select id="newFormFrequency" style="margin-top:5px; width:100%; padding:8px; border-radius:4px; border:1px solid #7cb342;">
-        <option value="Monthly">मासिक (Monthly - उदा. फक्त एप्रिल)</option>
-        <option value="Fortnightly" style="font-weight:bold; color:#d35400;">पंधरवाडी (Fortnightly - १ ते १५ / १६ ते अखेर)</option>
-        <option value="Daily">दैनिक (Daily - दररोजचा अहवाल)</option>
-        <option value="OneTime">एकवेळ (One-Time - एकदाच भरायचा)</option>
-    </select>
-</div>
+                        <label style="font-weight:bold; color:#33691e;">अहवाल कालावधी (Reporting Frequency):</label>
+                        <select id="newFormFrequency" style="margin-top:5px; width:100%; padding:8px; border-radius:4px; border:1px solid #7cb342;">
+                            <option value="Monthly">मासिक (Monthly - उदा. फक्त एप्रिल)</option>
+                            <option value="Fortnightly" style="font-weight:bold; color:#d35400;">पंधरवाडी (Fortnightly - १ ते १५ / १६ ते अखेर)</option>
+                            <option value="Daily">दैनिक (Daily - दररोजचा अहवाल)</option>
+                            <option value="OneTime">एकवेळ (One-Time - एकदाच भरायचा)</option>
+                        </select>
+                    </div>
 
                     <div style="margin-top:10px;">
                         <input type="checkbox" id="formIsActive" checked> <label for="formIsActive" style="font-weight:bold; color:#d35400;">हा फॉर्म सुरू (Active) ठेवा</label>
@@ -215,11 +214,11 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=25"></script>
-    <script src="js/entry.js?v=25"></script>
-    <script src="js/edit.js?v=25"></script>
-    <script src="js/report.js?v=25"></script>
-    <script src="js/admin.js?v=25"></script>
+    <script src="js/config.js?v=30"></script>
+    <script src="js/entry.js?v=30"></script>
+    <script src="js/edit.js?v=30"></script>
+    <script src="js/report.js?v=30"></script>
+    <script src="js/admin.js?v=30"></script>
 
     <script>
       if ('serviceWorker' in navigator) {
