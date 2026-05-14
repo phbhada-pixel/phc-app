@@ -1,6 +1,24 @@
-// 🟢 JS/REPORT.JS - उपकेंद्र फिल्टर (Subcenter Filter) सह
+// 🟢 JS/REPORT.JS - पंधरवडा (Fortnightly) आणि उपकेंद्र फिल्टरसह पूर्ण कोड
 
-// 🟢 PENDING REPORT LOGIC (उपकेंद्र फिल्टरसह)
+// 🟢 नवीन: अहवाल फॉर्म निवडल्यावर पंधरवडा ड्रॉपडाऊन दाखवणे/लपवणे
+function toggleReportFortnight() {
+    let fId = document.getElementById('reportFormSelect').value;
+    let fnDiv = document.getElementById('reportFortnightDiv');
+    if(!fnDiv) return;
+    
+    if(!fId || fId === "ALL") {
+        fnDiv.style.display = "none";
+        return;
+    }
+    let f = masterData.forms.find(x => x.FormID === fId);
+    if(f && String(f.Frequency).trim().toUpperCase() === "FORTNIGHTLY") {
+        fnDiv.style.display = "block";
+    } else {
+        fnDiv.style.display = "none";
+    }
+}
+
+// 🟢 PENDING REPORT LOGIC (उपकेंद्र आणि पंधरवाडा फिल्टरसह)
 function generatePendingReport() {
     const selMonth = document.getElementById('reportMonth').value;
     const selYear = document.getElementById('reportYear').value;
@@ -10,7 +28,6 @@ function generatePendingReport() {
 
     let groupedData = {}; 
     
-    // 🟢 नवीन: उपकेंद्र फिल्टर घेणे
     let filterSubCenter = "सर्व";
     if (document.getElementById('reportSubCenterFilter')) { filterSubCenter = document.getElementById('reportSubCenterFilter').value; }
 
@@ -22,11 +39,17 @@ function generatePendingReport() {
         let isAllForm = allowedRoles.includes("ALL");
         groupedData[f.FormName] = [];
 
+        // 🟢 पंधरवाडी फॉर्म असल्यास महिना आणि पंधरवडा एकत्र करणे
+        let targetMonth = selMonth;
+        if(String(f.Frequency).trim().toUpperCase() === "FORTNIGHTLY") {
+            let fn = document.getElementById('reportFortnight').value;
+            if(fn !== "सर्व") targetMonth = selMonth + " (" + fn + ")";
+        }
+
         masterData.users.forEach(u => {
             let isAdmin = (user.role === "Admin" || user.role === "VIEWER" || user.role === "MANAGER");
             if (!isAdmin && String(u.mobile).trim() !== String(user.mobile).trim()) return;
             
-            // 🟢 नवीन: उपकेंद्र फिल्टर तपासणे
             if (isAdmin && filterSubCenter !== "सर्व" && String(u.subcenter).trim() !== filterSubCenter) return;
 
             if (isAllForm || allowedRoles.includes(u.role)) {
@@ -34,7 +57,7 @@ function generatePendingReport() {
                 userVillages.forEach(v => {
                     let isFilled = masterData.filledStats.some(h => 
                         h.formID === f.FormID && String(h.village).trim() === String(v.VillageName).trim() && 
-                        String(h.month).trim() === selMonth && String(h.year).trim() === selYear
+                        String(h.month).trim() === targetMonth && String(h.year).trim() === selYear
                     );
                     if (!isFilled) { groupedData[f.FormName].push({ sc: u.subcenter, name: u.name, role: u.role, village: v.VillageName }); }
                 });
@@ -52,7 +75,17 @@ function generatePendingReport() {
         </div>
     `;
     
-    let html = `<div id="pdfExportArea" class="pdf-container"><h2 style="text-align:center; color:#c0392b; border-bottom: 2px solid #ccc; padding-bottom:10px;">अपूर्ण अहवाल यादी (${selMonth} ${selYear})</h2>`;
+    // टायटलमध्ये पंधरवड्याचे नाव दाखवणे
+    let displayMonthTitle = selMonth;
+    if(reportFormSelect !== "ALL" && reportFormSelect !== "") {
+        let selectedFormObj = masterData.forms.find(x => x.FormID === reportFormSelect);
+        if(selectedFormObj && String(selectedFormObj.Frequency).trim().toUpperCase() === "FORTNIGHTLY") {
+            let fn = document.getElementById('reportFortnight').value;
+            if(fn !== "सर्व") displayMonthTitle = selMonth + " (" + fn + ")";
+        }
+    }
+
+    let html = `<div id="pdfExportArea" class="pdf-container"><h2 style="text-align:center; color:#c0392b; border-bottom: 2px solid #ccc; padding-bottom:10px;">अपूर्ण अहवाल यादी (${displayMonthTitle} ${selYear})</h2>`;
     let hasData = false;
     for(let fName in groupedData) {
         if(groupedData[fName].length > 0) {
@@ -83,8 +116,9 @@ function generatePendingReport() {
 }
 
 function copyPendingListText() {
-    const selMonth = document.getElementById('reportMonth').value; const selYear = document.getElementById('reportYear').value;
-    let textToCopy = `*अहवाल अप्राप्त यादी (${selMonth} ${selYear})*\n\n`;
+    let titleEl = document.querySelector('#pdfExportArea h2');
+    let title = titleEl ? titleEl.innerText : "अहवाल अप्राप्त यादी";
+    let textToCopy = `*${title}*\n\n`;
     let tables = document.querySelectorAll('.pending-data-table');
     if(tables.length === 0) { alert("कॉपी करण्यासाठी कोणतीही माहिती नाही."); return; }
     let formHeaders = document.querySelectorAll('.pdf-group-header');
@@ -99,12 +133,14 @@ function copyPendingListText() {
 }
 
 function downloadPendingPDF() {
-    const selMonth = document.getElementById('reportMonth').value; const selYear = document.getElementById('reportYear').value;
+    let titleEl = document.querySelector('#pdfExportArea h2');
+    let title = titleEl ? titleEl.innerText.replace(/ /g, "_") : "Pending_Report";
+    
     const printContent = document.getElementById('pdfExportArea').innerHTML;
     let oldFrame = document.getElementById('pdfPrintFrame'); if (oldFrame) { oldFrame.remove(); }
     const iframe = document.createElement('iframe'); iframe.id = 'pdfPrintFrame'; iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0px'; iframe.style.height = '0px'; iframe.style.border = 'none';
     document.body.appendChild(iframe); let doc = iframe.contentWindow.document; doc.open();
-    doc.write(`<html><head><title>अहवाल_अप्राप्त_यादी_${selMonth}_${selYear}</title><style>body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; color: #000; } h2 { text-align: center; color: #c0392b; border-bottom: 2px solid #ccc; padding-bottom: 10px; } .pdf-group-header { background: #f8f9fa; color: #c0392b; padding: 10px; font-weight: bold; font-size: 16px; margin-top: 20px; border-bottom: 1px solid #c0392b; } table { width: 100%; border-collapse: collapse; margin-top: 10px; } th, td { border: 1px solid #000; padding: 8px; text-align: left; font-size: 14px; } th { background-color: #f2f2f2; font-weight: bold; } td:first-child, th:first-child { text-align: center; width: 10%; } @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }</style></head><body>${printContent}</body></html>`);
+    doc.write(`<html><head><title>${title}</title><style>body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; color: #000; } h2 { text-align: center; color: #c0392b; border-bottom: 2px solid #ccc; padding-bottom: 10px; } .pdf-group-header { background: #f8f9fa; color: #c0392b; padding: 10px; font-weight: bold; font-size: 16px; margin-top: 20px; border-bottom: 1px solid #c0392b; } table { width: 100%; border-collapse: collapse; margin-top: 10px; } th, td { border: 1px solid #000; padding: 8px; text-align: left; font-size: 14px; } th { background-color: #f2f2f2; font-weight: bold; } td:first-child, th:first-child { text-align: center; width: 10%; } @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }</style></head><body>${printContent}</body></html>`);
     doc.close(); setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 800);
 }
 
@@ -128,14 +164,11 @@ function getProgressiveTargetMonthsAndYears(selM, selY) {
     return result;
 }
 
-// 🟢 नवीन: अहवाल उघडताना उपकेंद्रांची यादी (Dropdown) तयार करणे
 function updateReportSubCenterDropdown() {
     let scFilter = document.getElementById('reportSubCenterFilter');
     if(!scFilter || !masterData || !masterData.subCenters) return;
     
-    // फक्त एकदाच लोड व्हावे म्हणून जुने ऑप्शन काढणे
     scFilter.innerHTML = '<option value="सर्व">सर्व उपकेंद्र (All Sub-centers)</option>';
-    
     let uniqueSCs = new Set();
     masterData.subCenters.forEach(sc => uniqueSCs.add(String(sc.SubCenterName).trim()));
     masterData.villages.forEach(v => uniqueSCs.add(String(v.SubCenterID).trim()));
@@ -145,19 +178,29 @@ function updateReportSubCenterDropdown() {
     });
 }
 
-// जेव्हा टॅब बदलतो तेव्हा हे फंक्शन कॉल होते, आपण इथे ड्रॉपडाऊन पॉप्युलेट करूया
 const originalSwitchTab = window.switchTab;
 window.switchTab = function(tab) {
     if(originalSwitchTab) originalSwitchTab(tab);
     if(tab === 'reports') { updateReportSubCenterDropdown(); }
 };
 
-// 🟢 REPORT FETCHING LOGIC (उपकेंद्र फिल्टरसह)
+// 🟢 REPORT FETCHING LOGIC 
 async function fetchReportData() {
-    const formID = document.getElementById('reportFormSelect').value; const selMonth = document.getElementById('reportMonth').value; const selYear = document.getElementById('reportYear').value;
+    const formID = document.getElementById('reportFormSelect').value; 
+    const selMonth = document.getElementById('reportMonth').value; 
+    const selYear = document.getElementById('reportYear').value;
     if(!formID) { alert("कृपया अहवाल निवडा"); return; }
     
-    // 🟢 नवीन: उपकेंद्र फिल्टर घेणे
+    // 🟢 पंधरवाडी फॉर्म असल्यास महिना आणि पधंरवडा एकत्र करून पाठवणे
+    let finalMonth = selMonth;
+    if(formID !== "ALL") {
+        let fObj = masterData.forms.find(x => x.FormID === formID);
+        if(fObj && String(fObj.Frequency).trim().toUpperCase() === "FORTNIGHTLY" && selMonth !== "सर्व") {
+            let fn = document.getElementById('reportFortnight').value;
+            if(fn !== "सर्व") finalMonth = selMonth + " (" + fn + ")";
+        }
+    }
+
     let filterSubCenter = "सर्व"; 
     if((user.role === "Admin" || user.role === "VIEWER" || user.role === "MANAGER") && document.getElementById('reportSubCenterFilter')) { 
         filterSubCenter = document.getElementById('reportSubCenterFilter').value; 
@@ -165,8 +208,7 @@ async function fetchReportData() {
     
     document.getElementById('reportLoader').style.display = "block"; document.getElementById('reportContentArea').classList.add('hidden'); document.getElementById('reportTableContainer').innerHTML = "";
     try {
-        // 🟢 payload मध्ये filterSubCenter पाठवणे
-        const payload = { formID: formID, role: user.role, subcenter: user.subcenter, mobileNo: user.mobile, filterSubCenter: filterSubCenter, month: selMonth, year: selYear };
+        const payload = { formID: formID, role: user.role, subcenter: user.subcenter, mobileNo: user.mobile, filterSubCenter: filterSubCenter, month: finalMonth, year: selYear };
         
         const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"getReportData", payload}) });
         const textResponse = await r.text(); const d = JSON.parse(textResponse);
@@ -192,11 +234,11 @@ async function fetchReportData() {
                         if(targetPeriods.some(p => p.m === m && p.y === y)) {
                             let sc = headers.indexOf("उपकेंद्र") > -1 ? String(row[headers.indexOf("उपकेंद्र")]).trim() : ""; let mob = headers.indexOf("मोबाईल क्र.") > -1 ? String(row[headers.indexOf("मोबाईल क्र.")]).trim() : ""; let gKey = `${sc}_${mob}_${v}`;
                             if(!villageData[gKey]) { villageData[gKey] = { baseRow: Array(headers.length).fill("-"), progressive: {}, monthly: {} }; headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); }
-                            if (m === selMonth && y === selYear) { headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); }
-                            headers.forEach((_, cIdx) => { if (numMap[cIdx]) { let val = parseFloat(row[cIdx]); if(!isNaN(val)) { villageData[gKey].progressive[cIdx] = (villageData[gKey].progressive[cIdx] || 0) + val; if (m === selMonth && y === selYear) { villageData[gKey].monthly[cIdx] = val; } } } });
+                            if (m === finalMonth && y === selYear) { headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); }
+                            headers.forEach((_, cIdx) => { if (numMap[cIdx]) { let val = parseFloat(row[cIdx]); if(!isNaN(val)) { villageData[gKey].progressive[cIdx] = (villageData[gKey].progressive[cIdx] || 0) + val; if (m === finalMonth && y === selYear) { villageData[gKey].monthly[cIdx] = val; } } } });
                         }
                     }
-                    Object.keys(villageData).forEach(k => { let vData = villageData[k]; let newRow = []; headers.forEach((h, cIdx) => { if (numMap[cIdx]) { newRow.push(vData.monthly[cIdx] || 0); newRow.push(vData.progressive[cIdx] || 0); } else { newRow.push(vData.baseRow[cIdx] || "-"); } }); if(monthIdx > -1) newRow[monthIdx] = selMonth; if(yearIdx > -1) newRow[yearIdx] = selYear; dataRows.push(newRow); });
+                    Object.keys(villageData).forEach(k => { let vData = villageData[k]; let newRow = []; headers.forEach((h, cIdx) => { if (numMap[cIdx]) { newRow.push(vData.monthly[cIdx] || 0); newRow.push(vData.progressive[cIdx] || 0); } else { newRow.push(vData.baseRow[cIdx] || "-"); } }); if(monthIdx > -1) newRow[monthIdx] = finalMonth; if(yearIdx > -1) newRow[yearIdx] = selYear; dataRows.push(newRow); });
                 } else if (isProgressive && isVertical && selMonth !== "सर्व" && selYear !== "सर्व") {
                     fData.push(headers); let targetPeriods = getProgressiveTargetMonthsAndYears(selMonth, selYear); let villageData = {}; let flatFields = extractFieldsFromForm(formObj); let numericLabels = flatFields.filter(f => f.orig.type === 'number' || f.orig.type === 'sum').map(f => f.label); let numMap = {}; headers.forEach((h, i) => { if (numericLabels.includes(h)) numMap[i] = true; });
                     for(let i=1; i<rep.data.length; i++) {
@@ -204,17 +246,17 @@ async function fetchReportData() {
                         if(targetPeriods.some(p => p.m === m && p.y === y)) {
                             let sc = headers.indexOf("उपकेंद्र") > -1 ? String(row[headers.indexOf("उपकेंद्र")]).trim() : ""; let mob = headers.indexOf("मोबाईल क्र.") > -1 ? String(row[headers.indexOf("मोबाईल क्र.")]).trim() : ""; let gKey = `${sc}_${mob}_${v}`;
                             if(!villageData[gKey]) { villageData[gKey] = { baseRow: Array(headers.length).fill("-"), progressive: {}, monthly: {} }; headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); }
-                            if (m === selMonth && y === selYear) { headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); }
-                            headers.forEach((_, cIdx) => { if (numMap[cIdx]) { let val = parseFloat(row[cIdx]); if(!isNaN(val)) { villageData[gKey].progressive[cIdx] = (villageData[gKey].progressive[cIdx] || 0) + val; if (m === selMonth && y === selYear) { villageData[gKey].monthly[cIdx] = val; } } } });
+                            if (m === finalMonth && y === selYear) { headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); }
+                            headers.forEach((_, cIdx) => { if (numMap[cIdx]) { let val = parseFloat(row[cIdx]); if(!isNaN(val)) { villageData[gKey].progressive[cIdx] = (villageData[gKey].progressive[cIdx] || 0) + val; if (m === finalMonth && y === selYear) { villageData[gKey].monthly[cIdx] = val; } } } });
                         }
                     }
-                    Object.keys(villageData).forEach(k => { let vData = villageData[k]; let newRow = []; headers.forEach((h, cIdx) => { if (numMap[cIdx]) { newRow.push({ M: vData.monthly[cIdx] || 0, P: vData.progressive[cIdx] || 0 }); } else { newRow.push(vData.baseRow[cIdx] || "-"); } }); if(monthIdx > -1) newRow[monthIdx] = selMonth; if(yearIdx > -1) newRow[yearIdx] = selYear; dataRows.push(newRow); });
+                    Object.keys(villageData).forEach(k => { let vData = villageData[k]; let newRow = []; headers.forEach((h, cIdx) => { if (numMap[cIdx]) { newRow.push({ M: vData.monthly[cIdx] || 0, P: vData.progressive[cIdx] || 0 }); } else { newRow.push(vData.baseRow[cIdx] || "-"); } }); if(monthIdx > -1) newRow[monthIdx] = finalMonth; if(yearIdx > -1) newRow[yearIdx] = selYear; dataRows.push(newRow); });
                 } else {
-                    fData.push(headers); for(let i=1; i<rep.data.length; i++) { let row = rep.data[i]; if((selMonth === "सर्व" || String(row[monthIdx]).trim() === selMonth) && (selYear === "सर्व" || String(row[yearIdx]).trim() === selYear)) dataRows.push(row); }
+                    fData.push(headers); for(let i=1; i<rep.data.length; i++) { let row = rep.data[i]; if((selMonth === "सर्व" || String(row[monthIdx]).trim() === finalMonth) && (selYear === "सर्व" || String(row[yearIdx]).trim() === selYear)) dataRows.push(row); }
                 }
                 fData = fData.concat(dataRows); finalReports.push({ formName: rep.formName, data: fData, isList: isList }); 
             });
-            if(finalReports.length > 0) { currentReports = finalReports; renderMultipleTables(finalReports, selMonth, selYear); document.getElementById('reportContentArea').classList.remove('hidden'); } else { alert("डेटा उपलब्ध नाही."); }
+            if(finalReports.length > 0) { currentReports = finalReports; renderMultipleTables(finalReports, finalMonth, selYear); document.getElementById('reportContentArea').classList.remove('hidden'); } else { alert("डेटा उपलब्ध नाही."); }
         }
     } catch(e) { document.getElementById('reportLoader').style.display = "none"; alert("एरर: " + e.message); }
 }
@@ -230,8 +272,7 @@ function renderMultipleTables(reports, month, year) {
 
     let excelBtnHtml = `<button onclick="downloadConsolidatedExcel()" style="background:#28a745; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom:15px; width:100%;">📥 Excel (.xlsx) डाउनलोड करा</button>`;
     let html = excelBtnHtml;
-    let periodText = (month === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${month} ${year !== 'सर्व' ? year : ''}`;
-
+    
     reports.forEach(rep => {
         let data = rep.data; let headers = data[0];
         let showIndices = []; headers.forEach((h, i) => { if(!CONFIG.hiddenColumns.includes(h) && h !== "गाव" && h !== "Village") showIndices.push(i); });
@@ -353,7 +394,7 @@ function renderMultipleTables(reports, month, year) {
     container.innerHTML = html;
 }
 
-// 🟢 DOWNLOAD EXCEL (उपकेंद्र फिल्टरसह)
+// 🟢 DOWNLOAD EXCEL (पंधरवडा नावासह)
 function downloadConsolidatedExcel() {
     if(currentReports.length === 0) return;
     
@@ -366,9 +407,21 @@ function downloadConsolidatedExcel() {
     }
 
     let wb = XLSX.utils.book_new();
-    let month = document.getElementById('reportMonth').value; let year = document.getElementById('reportYear').value;
+    let month = document.getElementById('reportMonth').value; 
+    let year = document.getElementById('reportYear').value;
+    const formID = document.getElementById('reportFormSelect').value;
+
+    // 🟢 एक्सेलच्या नावासाठी आणि टायटलसाठी पंधरवडा जोडणे
+    let finalMonth = month;
+    if(formID !== "ALL") {
+        let fObj = masterData.forms.find(x => x.FormID === formID);
+        if(fObj && String(fObj.Frequency).trim().toUpperCase() === "FORTNIGHTLY" && month !== "सर्व") {
+            let fn = document.getElementById('reportFortnight').value;
+            if(fn !== "सर्व") finalMonth = month + " (" + fn + ")";
+        }
+    }
     
-    let periodText = (month === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${month} ${year}`;
+    let periodText = (finalMonth === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${finalMonth} ${year}`;
     if((user.role === 'Admin' || user.role === 'VIEWER' || user.role === 'MANAGER') && filterSubCenter !== 'सर्व') periodText += ` (${filterSubCenter})`;
 
     currentReports.forEach((rep, index) => {
@@ -405,7 +458,8 @@ function downloadConsolidatedExcel() {
         }
 
         let sheetData = []; let merges = []; let headerRowIndices = [];
-        sheetData.push([`${rep.formName} अहवाल (${groupType})`]); sheetData.push([]); 
+        sheetData.push([`${rep.formName} अहवाल (${periodText})`]); // टायटलमध्ये महिना+पंधरवडा
+        sheetData.push([]); 
 
         if (isVertical) {
             if (groupType === "SubCenterConsolidated") {
@@ -505,5 +559,6 @@ function downloadConsolidatedExcel() {
         XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
     });
     
-    XLSX.writeFile(wb, `मासिक_अहवाल_${groupType}_${periodText}.xlsx`);
+    // एक्सेल फाईलच्या नावामध्ये पंधरवडा जोडणे
+    XLSX.writeFile(wb, `मासिक_अहवाल_${groupType}_${periodText.replace(/ /g, "_")}.xlsx`);
 }
