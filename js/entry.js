@@ -1,3 +1,5 @@
+// 🟢 JS/ENTRY.JS - Real-time Formula & Auto Calculation सह
+
 function isFormFilledForVillage(formObj, vName, month, year) {
     const serverHistory = masterData.filledStats || [];
     let allowedRoles = formObj.AllowedRoles ? formObj.AllowedRoles.split(',').map(r=>String(r).trim().toUpperCase()) : ["ALL"];
@@ -54,14 +56,10 @@ function updateFormDropdowns() {
                     const belongsToSubCenter = (userRole === "ADMIN" || userRole === "VIEWER" || userRole === "MANAGER") ? true : (String(v.SubCenterID).trim().toLowerCase() === String(user.subcenter).trim().toLowerCase() || String(v.SubCenterID).trim().toLowerCase() === "all");
                     if(belongsToSubCenter) {
                         hasVillages = true;
-                        if (!isFormFilledForVillage(f, v.VillageName, entryMonth, entryYear)) {
-                            fullyFilledCheck = false;
-                        }
+                        if (!isFormFilledForVillage(f, v.VillageName, entryMonth, entryYear)) { fullyFilledCheck = false; }
                     }
                 });
-                if (hasVillages && fullyFilledCheck) {
-                    isFullyFilled = true;
-                }
+                if (hasVillages && fullyFilledCheck) { isFullyFilled = true; }
             }
 
             let opt = `<option value="${f.FormID}">${f.FormName} ${isInactive ? '(Inactive)' : ''}</option>`;
@@ -114,8 +112,7 @@ function updateVillageDropdown() {
                 let allowedRoles = f.AllowedRoles ? f.AllowedRoles.split(',').map(r=>String(r).trim().toUpperCase()) : ["ALL"];
                 if (userRole === "ADMIN" || allowedRoles.includes("ALL") || allowedRoles.includes(userRole)) {
                     if (!isFormFilledForVillage(f, v.VillageName, month, year)) {
-                        isFullyFilled = false;
-                        break;
+                        isFullyFilled = false; break;
                     }
                 }
             }
@@ -146,17 +143,13 @@ function loadDynamicFields() {
 
     if(!fId) return;
 
-    // 🟢 'List' प्रकारचा फॉर्म असेल तर 'उर्वरित निरंक' बटन दाखवा किंवा अगोदरच सेव्ह केलेला मेसेज दाखवा
     const selectedForm = masterData.forms.find(x => x.FormID === fId);
     if(selectedForm && String(selectedForm.FormType).trim() === 'List' && nilArea) {
-        
         let remainingVillages = [];
         masterData.villages.forEach(v => {
             const belongsToSubCenter = String(v.SubCenterID).trim().toLowerCase() === String(user.subcenter).trim().toLowerCase() || String(v.SubCenterID).trim().toLowerCase() === "all";
             if(belongsToSubCenter) {
-                if (!isFormFilledForVillage(selectedForm, v.VillageName, month, year)) {
-                    remainingVillages.push(v.VillageName);
-                }
+                if (!isFormFilledForVillage(selectedForm, v.VillageName, month, year)) { remainingVillages.push(v.VillageName); }
             }
         });
 
@@ -174,7 +167,7 @@ function loadDynamicFields() {
     if(!vId) return;
 
     if (isMonthLocked(month, year)) {
-        area.innerHTML = "<p style='color:red; text-align:center; font-weight:bold; font-size:18px; padding:20px; border:2px solid red; border-radius:8px; background:#fff;'>⏳ क्षमस्व! या महिन्याची माहिती भरण्याची किंवा बदलण्याची मुदत (पुढील महिन्याची १० तारीख) संपली आहे.</p>";
+        area.innerHTML = "<p style='color:red; text-align:center; font-weight:bold; font-size:18px; padding:20px; border:2px solid red; border-radius:8px; background:#fff;'>⏳ क्षमस्व! या महिन्याची माहिती भरण्याची मुदत संपली आहे.</p>";
         return;
     }
     document.getElementById('mainSaveBtn').style.display = 'block';
@@ -183,9 +176,8 @@ function loadDynamicFields() {
     let availableVillages = Array.from(document.getElementById('selVillage').options).map(o => o.value).filter(v => v !== "" && v !== "ALL_VILLAGES");
 
     if (availableVillages.length === 0 && isBulk) {
-        area.innerHTML = "<p style='color:green; text-align:center; font-weight:bold; font-size:18px;'>🎉 अभिनंदन! या महिन्यासाठी सर्व गावांचा डेटा आधीच भरून पूर्ण झाला आहे!</p>";
-        document.getElementById('mainSaveBtn').style.display = 'none';
-        return;
+        area.innerHTML = "<p style='color:green; text-align:center; font-weight:bold; font-size:18px;'>🎉 अभिनंदन! या महिन्यासाठी सर्व गावांचा डेटा भरून पूर्ण झाला आहे!</p>";
+        document.getElementById('mainSaveBtn').style.display = 'none'; return;
     }
 
     if (fId === "ALL_STATS") {
@@ -216,7 +208,7 @@ function loadDynamicFields() {
         });
 
         if (renderedFormsCount === 0) {
-            area.innerHTML = "<p style='color:green; text-align:center; font-weight:bold; font-size:18px;'>🎉 अभिनंदन! या महिन्यासाठी सर्व आकडेवारी फॉर्म्स आधीच भरून पूर्ण झाले आहेत!</p>";
+            area.innerHTML = "<p style='color:green; text-align:center; font-weight:bold; font-size:18px;'>🎉 अभिनंदन! या महिन्यासाठी सर्व आकडेवारी फॉर्म्स पूर्ण झाले आहेत!</p>";
             document.getElementById('mainSaveBtn').style.display = 'none';
         } else { area.innerHTML = allHtml; }
     } else {
@@ -233,25 +225,124 @@ function loadDynamicFields() {
 
             if(formSpecificVillages.length === 0) {
                 area.innerHTML = "<p style='color:green; text-align:center; font-weight:bold; font-size:18px;'>🎉 अभिनंदन! या महिन्यासाठी हा फॉर्म भरून पूर्ण झाला आहे!</p>";
-                document.getElementById('mainSaveBtn').style.display = 'none';
-                return;
+                document.getElementById('mainSaveBtn').style.display = 'none'; return;
             }
 
             if(isBulk) { area.innerHTML = `<div id="${formContainerId}">` + generateBulkTableHTML(f, formSpecificVillages, f.FormID) + `</div>`; } 
             else { area.innerHTML = `<div id="${formContainerId}">` + generateFormHTML(f, "single", formContainerId) + `</div>`; }
         } else {
             if(isBulk) {
-                area.innerHTML = "<p style='color:red; text-align:center; font-weight:bold; padding:15px;'>⚠️ यादी (List) प्रकारच्या फॉर्मसाठी 'सर्व गावे' निवडता येत नाहीत. कृपया ड्रॉपडाऊनमधून एक विशिष्ट गाव निवडा.</p>";
-                document.getElementById('mainSaveBtn').style.display = 'none';
-                return;
+                area.innerHTML = "<p style='color:red; text-align:center; font-weight:bold; padding:15px;'>⚠️ यादी (List) प्रकारच्या फॉर्मसाठी 'सर्व गावे' निवडता येत नाहीत. कृपया एक विशिष्ट गाव निवडा.</p>";
+                document.getElementById('mainSaveBtn').style.display = 'none'; return;
             }
             area.innerHTML = `<div id="${formContainerId}" style="border: 2px solid #00705a; border-radius: 8px; background: #fdfdfd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow:hidden;">` + generateListHTML(f, f.FormID) + `</div>`;
         }
     }
 
-    setTimeout(() => { document.querySelectorAll('[id^="form_area_"], [id^="bulkrow_"], [id^="listrow_"]').forEach(el => { processAllLogic(el.id); }); }, 100);
+    // 🟢 लोड झाल्यावर एकदा सर्व फॉर्म्युले आणि अटी रन करणे
+    setTimeout(() => { document.querySelectorAll('[id^="form_area_"], [id^="bulkrow_"], [id^="listrow_"]').forEach(el => { processAllLogic(el.id); }); }, 200);
 }
 
+// 🟢 फॉर्म्युले, अटी आणि रेंज तपासणारे मुख्य फंक्शन
+function processAllLogic(containerId) {
+    let container = document.getElementById(containerId);
+    if(!container) return;
+
+    // १. Formula Calculation (Double Loop to catch dependencies)
+    for(let loop = 0; loop < 2; loop++) {
+        let formulaInputs = container.querySelectorAll('input[data-formula]');
+        formulaInputs.forEach(input => {
+            let rawFormula = input.getAttribute('data-formula');
+            if(!rawFormula) return;
+
+            let hasValue = false;
+            let evalString = rawFormula.replace(/\bf_\d+\b/g, function(match) {
+                let val = getFieldValueByFid(containerId, match);
+                if (val !== '""') hasValue = true; // जर कोणतीही किंमत असेल (0 सुद्धा), तर सूत्र लागू होईल
+                return val === '""' ? 0 : val;
+            });
+
+            if(hasValue) {
+                try {
+                    let result = eval(evalString);
+                    let finalVal = (result === Infinity || isNaN(result)) ? "" : (Number.isInteger(result) ? result : result.toFixed(2));
+                    if (input.value !== String(finalVal)) {
+                        input.value = finalVal;
+                        input.dispatchEvent(new Event('input')); // चेन रिॲक्शनसाठी
+                    }
+                } catch(e) {}
+            } else {
+                if (input.value !== "") { input.value = ""; input.dispatchEvent(new Event('input')); }
+            }
+        });
+    }
+
+    // २. Conditions / Dependencies (उदा. 'red' color किंवा value)
+    let condInputs = container.querySelectorAll('input[data-dependency], select[data-dependency]');
+    condInputs.forEach(depInput => {
+        let rawCond = depInput.getAttribute('data-dependency');
+        if(!rawCond) return;
+        let conditions = rawCond.split('|');
+        let matchedVal = null; let matchedColor = null;
+
+        for(let cond of conditions) {
+            let parts = cond.split(':');
+            if(parts.length >= 2) {
+                let expr = parts[0].trim(); let resultVal = parts.slice(1).join(':').trim();
+                let evalString = expr.replace(/\bf_\d+\b/g, function(match) { return getFieldValueByFid(containerId, match); });
+                evalString = evalString.replace(/(?<![<>=!])=(?![=])/g, "==");
+                try {
+                    if(eval(evalString)) {
+                        resultVal = resultVal.replace(/^['"]|['"]$/g, '');
+                        let colorMatch = resultVal.match(/\[([a-zA-Z]+)\]/);
+                        if (colorMatch) { matchedColor = colorMatch[1]; resultVal = resultVal.replace(colorMatch[0], '').trim(); }
+                        matchedVal = resultVal; break;
+                    }
+                } catch(e) {}
+            }
+        }
+        if(matchedVal !== null) {
+            depInput.value = matchedVal; depInput.style.pointerEvents = "none"; depInput.style.backgroundColor = matchedColor || "#e9ecef"; depInput.style.color = matchedColor ? "white" : "var(--primary)"; depInput.tabIndex = -1;
+        } else {
+            if(depInput.style.pointerEvents === "none") {
+                depInput.value = ""; depInput.style.pointerEvents = "auto"; depInput.style.backgroundColor = ""; depInput.style.color = "#333"; depInput.removeAttribute("tabIndex");
+            }
+        }
+    });
+
+    // ३. Range Validation
+    let rangeInputs = container.querySelectorAll('input[data-range]');
+    rangeInputs.forEach(input => {
+        let r = input.getAttribute('data-range').trim();
+        if(!r || input.value === "") { input.style.border = "1px solid #ccc"; input.classList.remove('error-input'); return; }
+        let val = parseFloat(input.value);
+        if(isNaN(val)) return;
+
+        let isError = false;
+        if (r.startsWith('<=')) { let max = parseFloat(r.replace('<=', '')); if(val > max) isError = true; } 
+        else if (r.startsWith('<')) { let max = parseFloat(r.replace('<', '')); if(val >= max) isError = true; } 
+        else if (r.startsWith('>=')) { let min = parseFloat(r.replace('>=', '')); if(val < min) isError = true; } 
+        else if (r.startsWith('>')) { let min = parseFloat(r.replace('>', '')); if(val <= min) isError = true; } 
+        else if (r.includes('-')) { let parts = r.split('-'); if(parts.length === 2) { let min = parseFloat(parts[0]); let max = parseFloat(parts[1]); if(val < min || val > max) isError = true; } }
+
+        if(isError) { input.style.border = "2px solid red"; input.classList.add('error-input'); } 
+        else { input.style.border = "1px solid #ccc"; input.classList.remove('error-input'); }
+    });
+}
+
+function getFieldValueByFid(containerId, fid) {
+    let container = document.getElementById(containerId);
+    if(!container) return '""';
+    let el = container.querySelector(`[data-fid="${fid}"]`);
+    if(el && el.value !== "") {
+        let val = String(el.value).trim();
+        if(!isNaN(val) && val !== "") return parseFloat(val);
+        return `"${val}"`; 
+    }
+    return '""'; 
+}
+
+// 🟢 इनपुट बॉक्स बनवताना फॉर्म्युला व्यवस्थित ॲड करणे
 function generateInputHTML(f, id, label, areaId, val="") {
     let html = "";
     if (val === "" && f.defaultValue !== undefined && f.defaultValue !== "" && !id.startsWith('edit_')) { val = f.defaultValue; }
@@ -260,22 +351,28 @@ function generateInputHTML(f, id, label, areaId, val="") {
     let reqAttr = f.isRequired ? `data-required="true"` : "";
     let safeDep = f.dependency ? String(f.dependency).replace(/"/g, "&quot;").replace(/'/g, "&apos;") : "";
     let depAttr = safeDep ? `data-dependency="${safeDep}"` : "";
-    let safeForm = (f.options && f.type === 'sum') ? String(f.options).replace(/"/g, "&quot;").replace(/'/g, "&apos;") : "";
-    let formulaAttr = safeForm ? `data-formula="${safeForm}" data-sum-targets="${safeForm}"` : "";
+    
+    // 🟢 फॉर्म्युला अचूकपणे लागू करणे
+    let safeForm = f.formula ? String(f.formula).replace(/"/g, "&quot;").replace(/'/g, "&apos;") : "";
+    let formulaAttr = safeForm ? `data-formula="${safeForm}"` : "";
+    
     let rangeAttr = f.range ? `data-range="${f.range}"` : "";
 
+    // 🟢 बॉक्समध्ये काहीही टाकले की लगेच processAllLogic कॉल करणे (Real-time calculation)
     let onEvent = `oninput="this.style.border=''; processAllLogic('${areaId}')" onchange="this.style.border=''; processAllLogic('${areaId}')"`;
 
     if (f.type === 'dropdown') {
         html += `<select id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${reqAttr} ${onEvent}><option value="">-- निवडा --</option>`;
         if(f.options) { f.options.split(',').forEach(opt => { let o = opt.trim(); let sel = (o === String(val).trim()) ? "selected" : ""; if(o) html += `<option value="${o}" ${sel}>${o}</option>`; }); }
+        else if(f.range) { f.range.split(',').forEach(opt => { let o = opt.trim(); let sel = (o === String(val).trim()) ? "selected" : ""; if(o) html += `<option value="${o}" ${sel}>${o}</option>`; }); }
         html += `</select>`;
-    } else if(f.type === 'sum') {
-        html += `<input type="text" id="${id}" data-label="${label}" ${fidAttr} ${formulaAttr} value="${val}" readonly style="background:#e9ecef; font-weight:bold; color:var(--primary); cursor:not-allowed;" placeholder="Auto Calculation">`;
+    } else if(f.formula) {
+        // फॉर्म्युला असेल तर बॉक्स Readonly (लॉक) करून ठेवणे
+        html += `<input type="number" step="any" id="${id}" data-label="${label}" ${fidAttr} ${formulaAttr} value="${val}" readonly style="background:#e9ecef; font-weight:bold; color:var(--primary); cursor:not-allowed;" placeholder="Auto Calculation" ${onEvent}>`;
     } else if(f.type === 'number') {
-        html += `<input type="number" id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${rangeAttr} ${reqAttr} value="${val}" ${onEvent}>`;
+        html += `<input type="number" step="any" id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${rangeAttr} ${reqAttr} value="${val}" ${onEvent}>`;
     } else if(f.type === 'mobile') {
-        html += `<input type="tel" id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${reqAttr} value="${val}" maxlength="10" pattern="[0-9]{10}" title="10 अंकी मोबाईल नंबर टाका" placeholder="10 अंकी नंबर" oninput="this.value=this.value.replace(/[^0-9]/g,''); this.style.border=''; processAllLogic('${areaId}');" onchange="this.style.border=''; processAllLogic('${areaId}')">`;
+        html += `<input type="tel" id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${reqAttr} value="${val}" maxlength="10" pattern="[0-9]{10}" placeholder="10 अंकी नंबर" oninput="this.value=this.value.replace(/[^0-9]/g,''); this.style.border=''; processAllLogic('${areaId}');" onchange="this.style.border=''; processAllLogic('${areaId}')">`;
     } else if(f.type === 'date') {
         html += `<input type="date" id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${reqAttr} value="${val}" ${onEvent}>`;
     } else {
@@ -653,113 +750,78 @@ async function saveDataToServer() {
     }
 }
 
-// 🟢 NEW: Submit Nil Report Logic (फक्त उर्वरित गावांसाठी आणि १००% Save गॅरंटीसह)
 async function submitNilReport(fId) {
     if(isSaving) return;
     const month = document.getElementById('selMonth').value;
     const year = document.getElementById('selYear').value;
     const f = masterData.forms.find(x => x.FormID === fId);
 
-    if (isMonthLocked(month, year)) {
-        alert("⏳ क्षमस्व! मुदत संपली आहे.");
-        return;
-    }
+    if (isMonthLocked(month, year)) { alert("⏳ क्षमस्व! मुदत संपली आहे."); return; }
 
-    // पुन्हा एकदा चेक करा की खरंच काही गावे उरली आहेत का? (Double Protection)
     let remainingVillages = [];
     masterData.villages.forEach(v => {
         const belongsToSubCenter = String(v.SubCenterID).trim().toLowerCase() === String(user.subcenter).trim().toLowerCase() || String(v.SubCenterID).trim().toLowerCase() === "all";
         if(belongsToSubCenter) {
-            if (!isFormFilledForVillage(f, v.VillageName, month, year)) {
-                remainingVillages.push(v.VillageName);
-            }
+            if (!isFormFilledForVillage(f, v.VillageName, month, year)) { remainingVillages.push(v.VillageName); }
         }
     });
 
     if(remainingVillages.length === 0) {
         alert("सर्व गावांचा अहवाल आधीच भरलेला आहे किंवा अगोदरच निरंक सेव्ह केलेला आहे!");
-        loadDynamicFields(); // UI रिफ्रेश करा
-        return;
+        loadDynamicFields(); return;
     }
 
-    if(!confirm(`तुम्हाला खात्री आहे का की ${month} ${year} साठी राहिलेल्या सर्व उर्वरित (${remainingVillages.length}) गावांचा अहवाल 'निरंक' म्हणून सबमिट करायचा आहे?`)) {
-        return;
-    }
+    if(!confirm(`तुम्हाला खात्री आहे का की ${month} ${year} साठी राहिलेल्या सर्व उर्वरित (${remainingVillages.length}) गावांचा अहवाल 'निरंक' म्हणून सबमिट करायचा आहे?`)) { return; }
 
     isSaving = true;
     if(document.getElementById('mainSaveBtn')) document.getElementById('mainSaveBtn').disabled = true;
 
-    // 🟢 गुगल शीटमध्ये एरर येऊ नये म्हणून फॉर्ममधील "पहिल्या प्रश्नाचे नाव" शोधणे
     let firstFieldLabel = "माहिती";
     try {
         let struct = JSON.parse(f.StructureJSON);
         if (struct && struct.length > 0) {
             let firstF = struct[0];
             if (firstF.type === 'group' && firstF.subFields && firstF.subFields.length > 0) {
-                if (firstF.subFields[0].type === 'group' && firstF.subFields[0].subFields && firstF.subFields[0].subFields.length > 0) {
-                    firstFieldLabel = firstF.label + " - " + firstF.subFields[0].label + " - " + firstF.subFields[0].subFields[0].label;
-                } else {
-                    firstFieldLabel = firstF.label + " - " + firstF.subFields[0].label;
-                }
-            } else {
-                firstFieldLabel = firstF.label;
-            }
+                if (firstF.subFields[0].type === 'group' && firstF.subFields[0].subFields && firstF.subFields[0].subFields.length > 0) { firstFieldLabel = firstF.label + " - " + firstF.subFields[0].label + " - " + firstF.subFields[0].subFields[0].label; } 
+                else { firstFieldLabel = firstF.label + " - " + firstF.subFields[0].label; }
+            } else { firstFieldLabel = firstF.label; }
         }
-    } catch(e) { console.error("Structure Parse Error:", e); }
+    } catch(e) {}
 
     let dataToSave = [];
     remainingVillages.forEach(village => {
         let formData = {};
-        // पहिल्या प्रश्नाच्या खाली "निरंक" सेव्ह करा जेणेकरून गुगल शीटमध्ये बरोबर एन्ट्री होईल
         formData[firstFieldLabel] = "निरंक (Nil Report)";
-        formData["महिना"] = month;
-        formData["वर्ष"] = year;
+        formData["महिना"] = month; formData["वर्ष"] = year;
         
-        const entry = { 
-            entryID: Date.now() + Math.random(), 
-            mobileNo: String(user.mobile).trim(), 
-            subCenter: String(user.subcenter).trim(), 
-            village: String(village).trim(), 
-            formID: fId, 
-            formData: formData 
-        };
+        const entry = { entryID: Date.now() + Math.random(), mobileNo: String(user.mobile).trim(), subCenter: String(user.subcenter).trim(), village: String(village).trim(), formID: fId, formData: formData };
         dataToSave.push(entry);
     });
 
     const statusText = document.getElementById('syncStatus');
-    statusText.style.color = "orange";
-    statusText.innerText = `☁️ उर्वरित ${remainingVillages.length} गावांचा निरंक (Nil) अहवाल सेव्ह होत आहे... कृपया थांबा.`;
+    statusText.style.color = "orange"; statusText.innerText = `☁️ उर्वरित ${remainingVillages.length} गावांचा निरंक (Nil) अहवाल सेव्ह होत आहे... कृपया थांबा.`;
 
     try {
         const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"syncData", payload: dataToSave}) });
         const textResponse = await r.text();
-
         if(textResponse.trim().startsWith("<")) throw new Error("Google Blocked Request");
 
         const d = JSON.parse(textResponse);
         if(d.success) {
-            statusText.style.color = "green";
-            statusText.innerText = "✅ उर्वरित गावांचा निरंक अहवाल यशस्वीरित्या सेव्ह झाला!";
+            statusText.style.color = "green"; statusText.innerText = "✅ उर्वरित गावांचा निरंक अहवाल यशस्वीरित्या सेव्ह झाला!";
             setTimeout(() => { statusText.innerText = ""; }, 4000);
 
             document.getElementById('netStatus').innerText = "डेटा रिफ्रेश होत आहे...";
-            await fetchData(); // नवीन डेटा सर्व्हरवरून परत आणा
+            await fetchData();
             document.getElementById('netStatus').innerText = "Online";
 
             document.getElementById('selVillage').value = "";
             document.getElementById('dynamicFormArea').innerHTML = "";
-            
-            // UI रिफ्रेश केल्यामुळे बटण गायब होऊन 'अगोदरच सेव्ह' चा मेसेज दिसेल
-            loadDynamicFields();
-            updateVillageDropdown();
-        } else { 
-            throw new Error("Server error"); 
-        }
+            loadDynamicFields(); updateVillageDropdown();
+        } else { throw new Error("Server error"); }
     } catch (error) {
-        console.error("Save Error:", error);
         alert("माहिती जतन करताना तांत्रिक अडचण आली. कृपया इंटरनेट तपासा आणि पुन्हा प्रयत्न करा.");
-        statusText.style.color = "red";
-        statusText.innerText = "⚠️ इंटरनेट एरर! माहिती सेव्ह होऊ शकली नाही.";
+        statusText.style.color = "red"; statusText.innerText = "⚠️ इंटरनेट एरर! माहिती सेव्ह होऊ शकली नाही.";
         setTimeout(() => { statusText.innerText = ""; }, 5000);
     } finally {
         isSaving = false;
