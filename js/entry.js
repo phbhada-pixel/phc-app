@@ -1,4 +1,4 @@
-// 🟢 JS/ENTRY.JS - Real-time Formula & Fortnightly (पंधरवाडी) सह
+// 🟢 JS/ENTRY.JS - Real-time Formula, Fortnightly & Dynamic Range (f_1) सह
 
 function isFormFilledForVillage(formObj, vName, month, year) {
     const serverHistory = masterData.filledStats || [];
@@ -95,7 +95,6 @@ function updateVillageDropdown() {
     vSel.innerHTML = '<option value="">-- गाव निवडा --</option>';
     if(!user || !fId) { document.getElementById('dynamicFormArea').innerHTML = ""; return; }
 
-    // 🟢 पंधरवाडी फॉर्म असल्यास महिना आणि पधंरवडा एकत्र करणे
     if(fId !== "ALL_STATS") {
         let f = masterData.forms.find(x => x.FormID === fId);
         if(f && String(f.Frequency).toUpperCase() === "FORTNIGHTLY") {
@@ -157,12 +156,11 @@ function loadDynamicFields() {
 
     const selectedForm = masterData.forms.find(x => x.FormID === fId);
     
-    // 🟢 पंधरवाडी फॉर्म असल्यास बॉक्स दाखवणे
     let freq = selectedForm ? String(selectedForm.Frequency || "Monthly").trim().toUpperCase() : "";
     if(freq === "FORTNIGHTLY" && document.getElementById('fortnightDiv')) {
         document.getElementById('fortnightDiv').style.display = "block";
         let fn = document.getElementById('selFortnight').value;
-        month = month + " (" + fn + ")"; // सेव्ह करण्यासाठी महिन्याचे नाव बदलले
+        month = month + " (" + fn + ")"; 
     } else if(document.getElementById('fortnightDiv')) {
         document.getElementById('fortnightDiv').style.display = "none";
     }
@@ -329,6 +327,7 @@ function processAllLogic(containerId) {
         }
     });
 
+    // 🟢 नवीन बदल: Dynamic Limits (<f_1) ओळखण्यासाठी 
     let rangeInputs = container.querySelectorAll('input[data-range]');
     rangeInputs.forEach(input => {
         let r = input.getAttribute('data-range').trim();
@@ -336,12 +335,27 @@ function processAllLogic(containerId) {
         let val = parseFloat(input.value);
         if(isNaN(val)) return;
 
+        function parseLimit(str) {
+            let s = str.trim();
+            if(s.startsWith('f_')) {
+                let fVal = getFieldValueByFid(containerId, s);
+                return (fVal === '""' || fVal === "") ? NaN : parseFloat(fVal);
+            }
+            return parseFloat(s);
+        }
+
         let isError = false;
-        if (r.startsWith('<=')) { let max = parseFloat(r.replace('<=', '')); if(val > max) isError = true; } 
-        else if (r.startsWith('<')) { let max = parseFloat(r.replace('<', '')); if(val >= max) isError = true; } 
-        else if (r.startsWith('>=')) { let min = parseFloat(r.replace('>=', '')); if(val < min) isError = true; } 
-        else if (r.startsWith('>')) { let min = parseFloat(r.replace('>', '')); if(val <= min) isError = true; } 
-        else if (r.includes('-')) { let parts = r.split('-'); if(parts.length === 2) { let min = parseFloat(parts[0]); let max = parseFloat(parts[1]); if(val < min || val > max) isError = true; } }
+        if (r.startsWith('<=')) { let max = parseLimit(r.replace('<=', '')); if(!isNaN(max) && val > max) isError = true; } 
+        else if (r.startsWith('<')) { let max = parseLimit(r.replace('<', '')); if(!isNaN(max) && val >= max) isError = true; } 
+        else if (r.startsWith('>=')) { let min = parseLimit(r.replace('>=', '')); if(!isNaN(min) && val < min) isError = true; } 
+        else if (r.startsWith('>')) { let min = parseLimit(r.replace('>', '')); if(!isNaN(min) && val <= min) isError = true; } 
+        else if (r.includes('-')) { 
+            let parts = r.split('-'); 
+            if(parts.length === 2) { 
+                let min = parseLimit(parts[0]); let max = parseLimit(parts[1]); 
+                if(!isNaN(min) && !isNaN(max) && (val < min || val > max)) isError = true; 
+            } 
+        }
 
         if(isError) { input.style.border = "2px solid red"; input.classList.add('error-input'); } 
         else { input.style.border = "1px solid #ccc"; input.classList.remove('error-input'); }
@@ -619,7 +633,6 @@ function extractFormData(f, prefix) {
     return formData;
 }
 
-// 🟢 फॉर्मचा डेटा सर्व्हरवर सेव्ह करणे (पंधरवाडी महिन्याच्या नावासह)
 async function saveDataToServer() {
     if(isSaving) return;
     const saveBtn = document.getElementById('mainSaveBtn');
@@ -655,7 +668,6 @@ async function saveDataToServer() {
         const f = masterData.forms.find(x => x.FormID === fId);
         if(f) { formsToProcess.push(f); prefixMap[f.FormID] = isBulk ? f.FormID : "single"; }
         
-        // 🟢 नवीन: पंधरवाडी असेल तर महिना अपडेट करणे
         if(f && String(f.Frequency).trim().toUpperCase() === "FORTNIGHTLY") {
             let fn = document.getElementById('selFortnight').value;
             month = month + " (" + fn + ")";
@@ -777,7 +789,6 @@ async function submitNilReport(fId) {
 
     if (isMonthLocked(document.getElementById('selMonth').value, year)) { alert("⏳ क्षमस्व! मुदत संपली आहे."); return; }
 
-    // 🟢 पंधरवाडी फॉर्म असल्यास महिना अपडेट करणे
     if(f && String(f.Frequency).trim().toUpperCase() === "FORTNIGHTLY") {
         let fn = document.getElementById('selFortnight').value;
         month = month + " (" + fn + ")";
@@ -824,7 +835,7 @@ async function submitNilReport(fId) {
     });
 
     const statusText = document.getElementById('syncStatus');
-    statusText.style.color = "orange"; statusText.innerText = `☁️ उर्वरित ${remainingVillages.length} गावांचा निरंक (Nil) अहवाल सेव्ह होत आहे... कृपया थांबा.`;
+    statusText.style.color = "orange"; statusText.innerText = `☁️ उर्वरित ${remainingVillages.length} गावांचा निरंक (Nil) अहवाल सेव्ह होत ভাগে... कृपया थांबा.`;
 
     try {
         const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"syncData", payload: dataToSave}) });
