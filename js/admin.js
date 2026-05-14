@@ -1,4 +1,4 @@
-// 🟢 JS/ADMIN.JS - Field IDs (f_1, f_2) आणि १००% Saving Logic सह
+// 🟢 JS/ADMIN.JS - Field IDs, Frequency (पंधरवाडी/मासिक) आणि Saving Logic सह
 
 function openNewFormBuilder() {
     document.getElementById('formBuilder').classList.remove('hidden');
@@ -7,6 +7,12 @@ function openNewFormBuilder() {
     document.getElementById('newFormName').value = "";
     document.getElementById('newFormType').value = "Stats";
     document.getElementById('newFormLayout').value = "Horizontal";
+    
+    // 🟢 नवीन: डिफॉल्ट 'मासिक' कालावधी निवडणे
+    if(document.getElementById('newFormFrequency')) {
+        document.getElementById('newFormFrequency').value = "Monthly";
+    }
+
     document.getElementById('formIsActive').checked = true;
     document.getElementById('roleAll').checked = true;
     document.getElementById('specificRoles').style.display = "none";
@@ -14,7 +20,7 @@ function openNewFormBuilder() {
     document.getElementById('fieldsList').innerHTML = "";
     document.getElementById('mainActionBtn').innerText = "फॉर्म सेव्ह करा";
     
-    globalFieldCounter = 1; // नवीन फॉर्मसाठी काऊंटर १ पासून सुरू
+    globalFieldCounter = 1; 
     toggleLayoutOption();
     addField(); 
 }
@@ -61,6 +67,11 @@ function loadFormForEdit(f) {
     
     toggleLayoutOption();
 
+    // 🟢 नवीन: सेव्ह केलेला कालावधी ड्रॉपडाऊनमध्ये दाखवणे
+    if(document.getElementById('newFormFrequency')) {
+        document.getElementById('newFormFrequency').value = f.Frequency || "Monthly";
+    }
+
     if (f.IsActive !== undefined) { document.getElementById('formIsActive').checked = f.IsActive; } 
     else { document.getElementById('formIsActive').checked = true; }
 
@@ -82,7 +93,6 @@ function loadFormForEdit(f) {
     let structure = [];
     try { structure = JSON.parse(f.StructureJSON); } catch(e) {}
     
-    // जुन्या प्रश्नांचे ID तपासून काऊंटर पुढे नेणे
     function updateMaxFid(fld) {
         if(fld.fid && fld.fid.startsWith('f_')) {
             let num = parseInt(fld.fid.split('_')[1]);
@@ -166,7 +176,6 @@ function addFieldToUI(fieldData = null) {
     }
 }
 
-// 🟢 सब-प्रश्न ॲड करणे
 function addSubFieldToUI(parentDiv, sfData = null) {
     const subList = parentDiv.querySelector('.sub-fields');
     const sDiv = document.createElement('div');
@@ -222,7 +231,6 @@ function addSubFieldToUI(parentDiv, sfData = null) {
     }
 }
 
-// 🟢 तिसरी लेव्हल (Sub-Sub) ॲड करणे
 function addSubSubFieldToUI(parentDiv, ssfData = null) {
     const subSubList = parentDiv.querySelector('.sub-sub-fields');
     const ssDiv = document.createElement('div');
@@ -272,13 +280,18 @@ function addField() { addFieldToUI(); }
 function addSubField(parentDiv) { addSubFieldToUI(parentDiv); }
 function addSubSubField(parentDiv) { addSubSubFieldToUI(parentDiv); }
 
-// 🟢 सर्व्हरवर फॉर्म सेव्ह करणे (100% Robust)
 async function saveFullForm() {
     let fId = document.getElementById('editFormID').value;
     let fName = document.getElementById('newFormName').value;
     let baseType = document.getElementById('newFormType').value;
     let layout = document.getElementById('newFormLayout').value;
     let isActive = document.getElementById('formIsActive').checked;
+    
+    // 🟢 नवीन: 'अहवाल कालावधी' (Frequency) घेणे
+    let frequency = "Monthly";
+    if(document.getElementById('newFormFrequency')) {
+        frequency = document.getElementById('newFormFrequency').value;
+    }
     
     let isAllRoles = document.getElementById('roleAll').checked;
     let allowedRoles = "ALL";
@@ -366,12 +379,13 @@ async function saveFullForm() {
 
     if(structure.length === 0) { alert("कमीत कमी १ प्रश्न आवश्यक आहे!"); return; }
 
-    // गुगल शीटला सपोर्ट करण्यासाठी IsActive आणि Status दोन्ही जोडले आहेत
+    // 🟢 Payload मध्ये Frequency जोडले
     let formPayload = {
         FormID: fId ? fId : "F_" + Date.now(),
         FormName: fName,
         FormType: finalType,
         AllowedRoles: allowedRoles,
+        Frequency: frequency, // 👈 इथे
         StructureJSON: JSON.stringify(structure),
         IsActive: isActive,
         isActive: isActive, 
@@ -393,7 +407,7 @@ async function saveFullForm() {
         if(d.success) {
             alert("✅ फॉर्म यशस्वीरित्या सेव्ह झाला!");
             document.getElementById('formBuilder').classList.add('hidden');
-            await fetchData(); // नवीन डेटा पुन्हा लोड करा
+            await fetchData(); 
         } else {
             alert("⚠️ एरर: " + d.message);
         }
