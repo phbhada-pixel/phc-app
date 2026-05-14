@@ -1,4 +1,4 @@
-// 🟢 JS/ENTRY.JS - Real-time Formula, Fortnightly & Dynamic Range (f_1) सह
+// 🟢 JS/ENTRY.JS - Auto-fill Population (लोकसंख्या) & Houses (घर संख्या) सह
 
 function isFormFilledForVillage(formObj, vName, month, year) {
     const serverHistory = masterData.filledStats || [];
@@ -220,8 +220,9 @@ function loadDynamicFields() {
                     let formContainerId = `form_area_${f.FormID}`;
                     allHtml += `<div id="${formContainerId}" style="margin-bottom: 30px; border: 2px solid #00705a; padding: 0; border-radius: 8px; background: #fdfdfd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow:hidden;">`;
                     allHtml += `<h3 style="background: #00705a; color: white; padding: 10px; margin: 0;">📌 ${f.FormName}</h3>`;
+                    // 🟢 vName (गावाचे नाव) HTML बनवताना पुढे पाठवणे
                     if(isBulk) { allHtml += generateBulkTableHTML(f, formSpecificVillages, f.FormID); } 
-                    else { allHtml += `<div style="padding:15px;">` + generateFormHTML(f, f.FormID, formContainerId) + `</div>`; }
+                    else { allHtml += `<div style="padding:15px;">` + generateFormHTML(f, f.FormID, formContainerId, vId) + `</div>`; }
                     allHtml += `</div>`;
                     renderedFormsCount++;
                 }
@@ -249,14 +250,15 @@ function loadDynamicFields() {
                 document.getElementById('mainSaveBtn').style.display = 'none'; return;
             }
 
+            // 🟢 vName (गावाचे नाव) HTML बनवताना पुढे पाठवणे
             if(isBulk) { area.innerHTML = `<div id="${formContainerId}">` + generateBulkTableHTML(f, formSpecificVillages, f.FormID) + `</div>`; } 
-            else { area.innerHTML = `<div id="${formContainerId}">` + generateFormHTML(f, "single", formContainerId) + `</div>`; }
+            else { area.innerHTML = `<div id="${formContainerId}">` + generateFormHTML(f, "single", formContainerId, vId) + `</div>`; }
         } else {
             if(isBulk) {
                 area.innerHTML = "<p style='color:red; text-align:center; font-weight:bold; padding:15px;'>⚠️ यादी (List) प्रकारच्या फॉर्मसाठी 'सर्व गावे' निवडता येत नाहीत. कृपया एक विशिष्ट गाव निवडा.</p>";
                 document.getElementById('mainSaveBtn').style.display = 'none'; return;
             }
-            area.innerHTML = `<div id="${formContainerId}" style="border: 2px solid #00705a; border-radius: 8px; background: #fdfdfd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow:hidden;">` + generateListHTML(f, f.FormID) + `</div>`;
+            area.innerHTML = `<div id="${formContainerId}" style="border: 2px solid #00705a; border-radius: 8px; background: #fdfdfd; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow:hidden;">` + generateListHTML(f, f.FormID, vId) + `</div>`;
         }
     }
 
@@ -327,7 +329,6 @@ function processAllLogic(containerId) {
         }
     });
 
-    // 🟢 नवीन बदल: Dynamic Limits (<f_1) ओळखण्यासाठी 
     let rangeInputs = container.querySelectorAll('input[data-range]');
     rangeInputs.forEach(input => {
         let r = input.getAttribute('data-range').trim();
@@ -374,9 +375,38 @@ function getFieldValueByFid(containerId, fid) {
     return '""'; 
 }
 
-function generateInputHTML(f, id, label, areaId, val="") {
+// 🟢 नवीन बदल: लोकसंख्या आणि घर संख्या आपोआप भरण्यासाठी vName ऍड केले
+function generateInputHTML(f, id, label, areaId, val="", vName="") {
     let html = "";
-    if (val === "" && f.defaultValue !== undefined && f.defaultValue !== "" && !id.startsWith('edit_')) { val = f.defaultValue; }
+    
+    // जर नवीन एंट्री असेल (edit_ ने सुरुवात नसेल) आणि व्हॅल्यू रिकामी असेल
+    if (val === "" && !id.startsWith('edit_')) {
+        let autoVal = "";
+        
+        // मास्टर डेटामधून गावाची लोकसंख्या आणि घर संख्या शोधणे
+        if (vName && masterData && masterData.villages) {
+            let vObj = masterData.villages.find(v => String(v.VillageName).trim() === String(vName).trim());
+            if (vObj) {
+                let lbl = String(label).trim();
+                
+                // लोकसंख्या चेक (फॉर्म्युला असेल तर ओव्हरराईट करू नये)
+                if (["लोकसंख्या", "एकूण लोकसंख्या", "गावची लोकसंख्या"].includes(lbl) || lbl.endsWith("लोकसंख्या")) {
+                    autoVal = vObj["Papulation"] || vObj["Population"] || "";
+                } 
+                // घर संख्या चेक
+                else if (["घर संख्या", "एकूण घर संख्या", "घरांची संख्या", "एकूण घरे", "घरे"].includes(lbl) || lbl.endsWith("घर संख्या") || lbl.endsWith("घरांची संख्या") || lbl.endsWith("घरे")) {
+                    autoVal = vObj["No Of Houses"] || "";
+                }
+            }
+        }
+        
+        // जर Auto-value मिळाली आणि त्या प्रश्नावर कुठलाही फॉर्म्युला नसेल, तर ती सेट करा
+        if (autoVal !== "" && !f.formula) {
+            val = autoVal;
+        } else if (f.defaultValue !== undefined && f.defaultValue !== "") {
+            val = f.defaultValue;
+        }
+    }
 
     let fidAttr = f.fid ? `data-fid="${f.fid}"` : ""; 
     let reqAttr = f.isRequired ? `data-required="true"` : "";
@@ -432,7 +462,8 @@ function extractFieldsFromForm(f) {
     return fields;
 }
 
-function generateFormHTML(f, prefix, areaId) {
+// 🟢 vName पुढे पास करण्यासाठी बदल
+function generateFormHTML(f, prefix, areaId, vName="") {
     let html = "";
     JSON.parse(f.StructureJSON).forEach((field, i) => {
         let exactLabel = String(field.label).trim();
@@ -452,21 +483,21 @@ function generateFormHTML(f, prefix, areaId) {
                         let reqStar3 = ssf.isRequired ? '<span class="req-star">*</span>' : '';
                         let exactSubSubLabel = `${exactLabel} - ${exactSfLabel} - ${exactSsfLabel}`;
                         html += `<div style="margin-bottom:8px;"><label style="font-size:13px; color:#555;"><b>${exactSsfLabel}${reqStar3}:</b></label>`;
-                        html += generateInputHTML(ssf, `${prefix}_inp_${i}_${j}_${k}`, exactSubSubLabel, areaId, "");
+                        html += generateInputHTML(ssf, `${prefix}_inp_${i}_${j}_${k}`, exactSubSubLabel, areaId, "", vName);
                         html += `</div>`;
                     });
                     html += `</div>`;
                 } else {
                     let exactSubLabel = `${exactLabel} - ${exactSfLabel}`;
                     html += `<div style="margin-bottom:10px;"><label style="font-size:14px; color:#555;"><b>${exactSfLabel}${reqStar2}:</b></label>`;
-                    html += generateInputHTML(sf, `${prefix}_inp_${i}_${j}`, exactSubLabel, areaId, "");
+                    html += generateInputHTML(sf, `${prefix}_inp_${i}_${j}`, exactSubLabel, areaId, "", vName);
                     html += `</div>`;
                 }
             });
             html += `</div>`;
         } else {
             html += `<div style="margin-bottom:15px; background:white; padding:10px; border-radius:8px; border:1px solid #ddd;"><label><b>${exactLabel}${reqStar1}:</b></label>`;
-            html += generateInputHTML(field, `${prefix}_inp_${i}`, exactLabel, areaId, "");
+            html += generateInputHTML(field, `${prefix}_inp_${i}`, exactLabel, areaId, "", vName);
             html += `</div>`;
         }
     });
@@ -505,6 +536,7 @@ function generateTableHeaders(f) {
     return thead;
 }
 
+// 🟢 Bulk Entry मध्येही vName पुढे पास केले
 function generateBulkTableHTML(f, availableVillages, formPrefix) {
     if (isMobile()) {
         let html = "";
@@ -514,7 +546,7 @@ function generateBulkTableHTML(f, availableVillages, formPrefix) {
             let inputPrefix = `bulk_${formPrefix}_${safeVName}`;
             html += `<div id="${rowId}" style="background:white; padding:15px; margin-bottom:20px; border-radius:8px; box-shadow:0 4px 8px rgba(0,0,0,0.1); border:2px solid var(--primary);">`;
             html += `<h3 style="color:var(--primary); text-align:left; border-bottom:2px solid var(--primary); padding-bottom:5px; margin-top:0; font-size:18px;">🏢 गाव: ${vName}</h3>`;
-            html += generateFormHTML(f, inputPrefix, rowId);
+            html += generateFormHTML(f, inputPrefix, rowId, vName);
             html += `</div>`;
         });
         return html;
@@ -528,20 +560,20 @@ function generateBulkTableHTML(f, availableVillages, formPrefix) {
         let rowId = `bulkrow_${formPrefix}_${safeVName}`;
         let inputPrefix = `bulk_${formPrefix}_${safeVName}`;
         rowsHtml += `<tr id="${rowId}"><td class="sticky-col" style="background:#fdfdfd;">${vName}</td>`;
-        fields.forEach(fld => { let cellHtml = generateInputHTML(fld.orig, `${inputPrefix}_inp_${fld.idSuffix}`, fld.label, rowId, ""); rowsHtml += `<td>${cellHtml}</td>`; });
+        fields.forEach(fld => { let cellHtml = generateInputHTML(fld.orig, `${inputPrefix}_inp_${fld.idSuffix}`, fld.label, rowId, "", vName); rowsHtml += `<td>${cellHtml}</td>`; });
         rowsHtml += `</tr>`;
     });
     return `<div class="table-responsive" style="max-height: 65vh; overflow: auto; border: 1px solid #ddd; margin-top:0;"><table class="report-table" style="width:100%; border-collapse: separate; border-spacing: 0;"><thead style="position: sticky; top: 0; z-index: 3;">${headersHtml}</thead><tbody>${rowsHtml}</tbody></table></div>`;
 }
 
-function generateListHTML(f, formPrefix) {
+function generateListHTML(f, formPrefix, vName="") {
     let fields = extractFieldsFromForm(f);
     let html = `<h3 style="background: #00705a; color: white; padding: 10px; margin: 0;">📌 ${f.FormName} (रुग्ण/लाभार्थी यादी)</h3>`;
     let initialRowIdx = Date.now();
 
     if (isMobile()) {
         html += `<div id="list_tbody_${f.FormID}" style="background:#f4f7f6; padding:10px; border-bottom:1px solid #ddd;">`;
-        html += generateSingleListRowMobile(f, fields, formPrefix, initialRowIdx);
+        html += generateSingleListRowMobile(f, fields, formPrefix, initialRowIdx, vName);
         html += `</div>`;
     } else {
         let headersHtml = `<tr><th class="sticky-header-col" style="background:#00705a; color:white; min-width:60px;">अ.क्र.</th>`;
@@ -565,7 +597,7 @@ function generateListHTML(f, formPrefix) {
         });
         headersHtml += `</tr>`;
         html += `<div class="table-responsive" style="max-height: 65vh; overflow: auto; border: 1px solid #ddd; margin-top:0;"><table class="report-table" style="width:100%; border-collapse: separate; border-spacing: 0;"><thead>${headersHtml}</thead><tbody id="list_tbody_${f.FormID}">`;
-        html += generateSingleListRowDesktop(f, fields, formPrefix, initialRowIdx);
+        html += generateSingleListRowDesktop(f, fields, formPrefix, initialRowIdx, vName);
         html += `</tbody></table></div>`;
     }
     
@@ -577,27 +609,28 @@ function generateListHTML(f, formPrefix) {
     return html;
 }
 
-function generateSingleListRowDesktop(f, fields, formPrefix, uniqueIdx) {
+function generateSingleListRowDesktop(f, fields, formPrefix, uniqueIdx, vName="") {
     let rowId = `listrow_${formPrefix}_${uniqueIdx}`; let inputPrefix = `list_${formPrefix}_${uniqueIdx}`;
     let trHtml = `<tr id="${rowId}"><td class="sticky-col" style="text-align:center; vertical-align:top; padding-top:15px;">- <br><button type="button" tabindex="-1" onclick="this.parentElement.parentElement.remove(); updateListRowNumbers('${f.FormID}');" style="color:red; background:none; border:none; cursor:pointer; font-size:18px; margin-top:5px;" title="ओळ काढून टाका">✖</button></td>`;
-    fields.forEach(fld => { let cellHtml = generateInputHTML(fld.orig, `${inputPrefix}_inp_${fld.idSuffix}`, fld.label, rowId, ""); trHtml += `<td>${cellHtml}</td>`; });
+    fields.forEach(fld => { let cellHtml = generateInputHTML(fld.orig, `${inputPrefix}_inp_${fld.idSuffix}`, fld.label, rowId, "", vName); trHtml += `<td>${cellHtml}</td>`; });
     return trHtml + `</tr>`;
 }
 
-function generateSingleListRowMobile(f, fields, formPrefix, uniqueIdx) {
+function generateSingleListRowMobile(f, fields, formPrefix, uniqueIdx, vName="") {
     let rowId = `listrow_${formPrefix}_${uniqueIdx}`; let inputPrefix = `list_${formPrefix}_${uniqueIdx}`;
     let html = `<div class="mobile-list-card" id="${rowId}" style="background:white; padding:15px; margin-bottom:20px; border-radius:8px; box-shadow:0 4px 8px rgba(0,0,0,0.1); border:1px solid #bce8f1; position:relative;">`;
     html += `<div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:8px; margin-bottom:15px;"><span class="row-number" style="color:#00705a; font-weight:bold; font-size:18px;">रुग्ण १</span><button type="button" tabindex="-1" onclick="this.parentElement.parentElement.remove(); updateListRowNumbers('${f.FormID}');" style="color:white; background:#dc3545; border:none; border-radius:4px; padding:6px 12px; cursor:pointer; font-size:13px; width:auto; font-weight:bold;">काढून टाका ✖</button></div>`;
-    fields.forEach(fld => { html += `<div style="margin-bottom:12px;">`; let reqStar = fld.orig.isRequired ? '<span class="req-star">*</span>' : ''; html += `<label style="font-size:14px; font-weight:bold; color:#444; display:block; margin-bottom:5px;">${fld.label}${reqStar}</label>`; html += generateInputHTML(fld.orig, `${inputPrefix}_inp_${fld.idSuffix}`, fld.label, rowId, ""); html += `</div>`; });
+    fields.forEach(fld => { html += `<div style="margin-bottom:12px;">`; let reqStar = fld.orig.isRequired ? '<span class="req-star">*</span>' : ''; html += `<label style="font-size:14px; font-weight:bold; color:#444; display:block; margin-bottom:5px;">${fld.label}${reqStar}</label>`; html += generateInputHTML(fld.orig, `${inputPrefix}_inp_${fld.idSuffix}`, fld.label, rowId, "", vName); html += `</div>`; });
     return html + `</div>`;
 }
 
 function addListRow(fId) {
     const f = masterData.forms.find(x => x.FormID === fId); if(!f) return;
+    let vName = document.getElementById('selVillage') ? document.getElementById('selVillage').value : "";
     let tbody = document.getElementById(`list_tbody_${fId}`);
     let rowIdx = Date.now() + Math.floor(Math.random() * 100);
     let fields = extractFieldsFromForm(f);
-    let newHtml = isMobile() ? generateSingleListRowMobile(f, fields, fId, rowIdx) : generateSingleListRowDesktop(f, fields, fId, rowIdx);
+    let newHtml = isMobile() ? generateSingleListRowMobile(f, fields, fId, rowIdx, vName) : generateSingleListRowDesktop(f, fields, fId, rowIdx, vName);
     tbody.insertAdjacentHTML('beforeend', newHtml);
     updateListRowNumbers(fId);
 }
@@ -835,7 +868,7 @@ async function submitNilReport(fId) {
     });
 
     const statusText = document.getElementById('syncStatus');
-    statusText.style.color = "orange"; statusText.innerText = `☁️ उर्वरित ${remainingVillages.length} गावांचा निरंक (Nil) अहवाल सेव्ह होत ভাগে... कृपया थांबा.`;
+    statusText.style.color = "orange"; statusText.innerText = `☁️ उर्वरित ${remainingVillages.length} गावांचा निरंक (Nil) अहवाल सेव्ह होत आहे... कृपया थांबा.`;
 
     try {
         const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"syncData", payload: dataToSave}) });
