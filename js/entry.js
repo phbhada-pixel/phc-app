@@ -1,4 +1,4 @@
-// 🟢 JS/ENTRY.JS - Real-time Formula & Auto Calculation सह
+// 🟢 JS/ENTRY.JS - Real-time Formula & Fortnightly (पंधरवाडी) सह
 
 function isFormFilledForVillage(formObj, vName, month, year) {
     const serverHistory = masterData.filledStats || [];
@@ -89,11 +89,20 @@ function updateFormDropdowns() {
 function updateVillageDropdown() {
     const vSel = document.getElementById('selVillage');
     const fId = document.getElementById('selForm').value;
-    const month = document.getElementById('selMonth').value;
+    let month = document.getElementById('selMonth').value;
     const year = document.getElementById('selYear').value;
 
     vSel.innerHTML = '<option value="">-- गाव निवडा --</option>';
     if(!user || !fId) { document.getElementById('dynamicFormArea').innerHTML = ""; return; }
+
+    // 🟢 पंधरवाडी फॉर्म असल्यास महिना आणि पधंरवडा एकत्र करणे
+    if(fId !== "ALL_STATS") {
+        let f = masterData.forms.find(x => x.FormID === fId);
+        if(f && String(f.Frequency).toUpperCase() === "FORTNIGHTLY") {
+            let fn = document.getElementById('selFortnight').value;
+            month = month + " (" + fn + ")";
+        }
+    }
 
     vSel.innerHTML += '<option value="ALL_VILLAGES" style="font-weight:bold; color:#0056b3;">🏢 सर्व गावे एकत्रित भरा (Bulk Entry)</option>';
 
@@ -134,16 +143,30 @@ function loadDynamicFields() {
     const vId = document.getElementById('selVillage').value;
     const area = document.getElementById('dynamicFormArea');
     const nilArea = document.getElementById('nilButtonContainer'); 
-    const month = document.getElementById('selMonth').value;
+    let month = document.getElementById('selMonth').value;
     const year = document.getElementById('selYear').value;
 
     area.innerHTML = "";
     if(nilArea) nilArea.innerHTML = ""; 
     document.getElementById('mainSaveBtn').style.display = 'none';
 
-    if(!fId) return;
+    if(!fId) {
+        if(document.getElementById('fortnightDiv')) document.getElementById('fortnightDiv').style.display = 'none';
+        return;
+    }
 
     const selectedForm = masterData.forms.find(x => x.FormID === fId);
+    
+    // 🟢 पंधरवाडी फॉर्म असल्यास बॉक्स दाखवणे
+    let freq = selectedForm ? String(selectedForm.Frequency || "Monthly").trim().toUpperCase() : "";
+    if(freq === "FORTNIGHTLY" && document.getElementById('fortnightDiv')) {
+        document.getElementById('fortnightDiv').style.display = "block";
+        let fn = document.getElementById('selFortnight').value;
+        month = month + " (" + fn + ")"; // सेव्ह करण्यासाठी महिन्याचे नाव बदलले
+    } else if(document.getElementById('fortnightDiv')) {
+        document.getElementById('fortnightDiv').style.display = "none";
+    }
+
     if(selectedForm && String(selectedForm.FormType).trim() === 'List' && nilArea) {
         let remainingVillages = [];
         masterData.villages.forEach(v => {
@@ -166,7 +189,7 @@ function loadDynamicFields() {
 
     if(!vId) return;
 
-    if (isMonthLocked(month, year)) {
+    if (isMonthLocked(document.getElementById('selMonth').value, year)) {
         area.innerHTML = "<p style='color:red; text-align:center; font-weight:bold; font-size:18px; padding:20px; border:2px solid red; border-radius:8px; background:#fff;'>⏳ क्षमस्व! या महिन्याची माहिती भरण्याची मुदत संपली आहे.</p>";
         return;
     }
@@ -239,16 +262,13 @@ function loadDynamicFields() {
         }
     }
 
-    // 🟢 लोड झाल्यावर एकदा सर्व फॉर्म्युले आणि अटी रन करणे
     setTimeout(() => { document.querySelectorAll('[id^="form_area_"], [id^="bulkrow_"], [id^="listrow_"]').forEach(el => { processAllLogic(el.id); }); }, 200);
 }
 
-// 🟢 फॉर्म्युले, अटी आणि रेंज तपासणारे मुख्य फंक्शन
 function processAllLogic(containerId) {
     let container = document.getElementById(containerId);
     if(!container) return;
 
-    // १. Formula Calculation (Double Loop to catch dependencies)
     for(let loop = 0; loop < 2; loop++) {
         let formulaInputs = container.querySelectorAll('input[data-formula]');
         formulaInputs.forEach(input => {
@@ -258,7 +278,7 @@ function processAllLogic(containerId) {
             let hasValue = false;
             let evalString = rawFormula.replace(/\bf_\d+\b/g, function(match) {
                 let val = getFieldValueByFid(containerId, match);
-                if (val !== '""') hasValue = true; // जर कोणतीही किंमत असेल (0 सुद्धा), तर सूत्र लागू होईल
+                if (val !== '""' && val !== 0 && val !== "") hasValue = true;
                 return val === '""' ? 0 : val;
             });
 
@@ -268,7 +288,7 @@ function processAllLogic(containerId) {
                     let finalVal = (result === Infinity || isNaN(result)) ? "" : (Number.isInteger(result) ? result : result.toFixed(2));
                     if (input.value !== String(finalVal)) {
                         input.value = finalVal;
-                        input.dispatchEvent(new Event('input')); // चेन रिॲक्शनसाठी
+                        input.dispatchEvent(new Event('input')); 
                     }
                 } catch(e) {}
             } else {
@@ -277,7 +297,6 @@ function processAllLogic(containerId) {
         });
     }
 
-    // २. Conditions / Dependencies (उदा. 'red' color किंवा value)
     let condInputs = container.querySelectorAll('input[data-dependency], select[data-dependency]');
     condInputs.forEach(depInput => {
         let rawCond = depInput.getAttribute('data-dependency');
@@ -310,7 +329,6 @@ function processAllLogic(containerId) {
         }
     });
 
-    // ३. Range Validation
     let rangeInputs = container.querySelectorAll('input[data-range]');
     rangeInputs.forEach(input => {
         let r = input.getAttribute('data-range').trim();
@@ -342,7 +360,6 @@ function getFieldValueByFid(containerId, fid) {
     return '""'; 
 }
 
-// 🟢 इनपुट बॉक्स बनवताना फॉर्म्युला व्यवस्थित ॲड करणे
 function generateInputHTML(f, id, label, areaId, val="") {
     let html = "";
     if (val === "" && f.defaultValue !== undefined && f.defaultValue !== "" && !id.startsWith('edit_')) { val = f.defaultValue; }
@@ -351,14 +368,10 @@ function generateInputHTML(f, id, label, areaId, val="") {
     let reqAttr = f.isRequired ? `data-required="true"` : "";
     let safeDep = f.dependency ? String(f.dependency).replace(/"/g, "&quot;").replace(/'/g, "&apos;") : "";
     let depAttr = safeDep ? `data-dependency="${safeDep}"` : "";
-    
-    // 🟢 फॉर्म्युला अचूकपणे लागू करणे
     let safeForm = f.formula ? String(f.formula).replace(/"/g, "&quot;").replace(/'/g, "&apos;") : "";
     let formulaAttr = safeForm ? `data-formula="${safeForm}"` : "";
-    
     let rangeAttr = f.range ? `data-range="${f.range}"` : "";
 
-    // 🟢 बॉक्समध्ये काहीही टाकले की लगेच processAllLogic कॉल करणे (Real-time calculation)
     let onEvent = `oninput="this.style.border=''; processAllLogic('${areaId}')" onchange="this.style.border=''; processAllLogic('${areaId}')"`;
 
     if (f.type === 'dropdown') {
@@ -367,8 +380,7 @@ function generateInputHTML(f, id, label, areaId, val="") {
         else if(f.range) { f.range.split(',').forEach(opt => { let o = opt.trim(); let sel = (o === String(val).trim()) ? "selected" : ""; if(o) html += `<option value="${o}" ${sel}>${o}</option>`; }); }
         html += `</select>`;
     } else if(f.formula) {
-        // फॉर्म्युला असेल तर बॉक्स Readonly (लॉक) करून ठेवणे
-        html += `<input type="number" step="any" id="${id}" data-label="${label}" ${fidAttr} ${formulaAttr} value="${val}" readonly style="background:#e9ecef; font-weight:bold; color:var(--primary); cursor:not-allowed;" placeholder="Auto Calculation" ${onEvent}>`;
+        html += `<input type="number" step="any" id="${id}" data-label="${label}" ${fidAttr} ${formulaAttr} value="${val}" readonly style="background:#e9ecef; font-weight:bold; color:var(--primary); cursor:not-allowed;" placeholder="Auto" ${onEvent}>`;
     } else if(f.type === 'number') {
         html += `<input type="number" step="any" id="${id}" data-label="${label}" ${fidAttr} ${depAttr} ${rangeAttr} ${reqAttr} value="${val}" ${onEvent}>`;
     } else if(f.type === 'mobile') {
@@ -607,6 +619,7 @@ function extractFormData(f, prefix) {
     return formData;
 }
 
+// 🟢 फॉर्मचा डेटा सर्व्हरवर सेव्ह करणे (पंधरवाडी महिन्याच्या नावासह)
 async function saveDataToServer() {
     if(isSaving) return;
     const saveBtn = document.getElementById('mainSaveBtn');
@@ -616,12 +629,12 @@ async function saveDataToServer() {
     let formsToProcess = [];
     const fId = document.getElementById('selForm').value;
     const vName = document.getElementById('selVillage').value;
-    const month = document.getElementById('selMonth').value;
+    let month = document.getElementById('selMonth').value;
     const year = document.getElementById('selYear').value;
 
     if(!fId || !vName) { alert("कृपया फॉर्म आणि गाव निवडा!"); return; }
 
-    if (isMonthLocked(month, year)) { alert("⏳ क्षमस्व! मुदत संपली आहे."); return; }
+    if (isMonthLocked(document.getElementById('selMonth').value, year)) { alert("⏳ क्षमस्व! मुदत संपली आहे."); return; }
 
     let isBulk = (vName === "ALL_VILLAGES");
     let baseVillages = [];
@@ -641,6 +654,12 @@ async function saveDataToServer() {
     } else {
         const f = masterData.forms.find(x => x.FormID === fId);
         if(f) { formsToProcess.push(f); prefixMap[f.FormID] = isBulk ? f.FormID : "single"; }
+        
+        // 🟢 नवीन: पंधरवाडी असेल तर महिना अपडेट करणे
+        if(f && String(f.Frequency).trim().toUpperCase() === "FORTNIGHTLY") {
+            let fn = document.getElementById('selFortnight').value;
+            month = month + " (" + fn + ")";
+        }
     }
 
     formsToProcess.forEach(f => {
@@ -752,11 +771,17 @@ async function saveDataToServer() {
 
 async function submitNilReport(fId) {
     if(isSaving) return;
-    const month = document.getElementById('selMonth').value;
+    let month = document.getElementById('selMonth').value;
     const year = document.getElementById('selYear').value;
     const f = masterData.forms.find(x => x.FormID === fId);
 
-    if (isMonthLocked(month, year)) { alert("⏳ क्षमस्व! मुदत संपली आहे."); return; }
+    if (isMonthLocked(document.getElementById('selMonth').value, year)) { alert("⏳ क्षमस्व! मुदत संपली आहे."); return; }
+
+    // 🟢 पंधरवाडी फॉर्म असल्यास महिना अपडेट करणे
+    if(f && String(f.Frequency).trim().toUpperCase() === "FORTNIGHTLY") {
+        let fn = document.getElementById('selFortnight').value;
+        month = month + " (" + fn + ")";
+    }
 
     let remainingVillages = [];
     masterData.villages.forEach(v => {
