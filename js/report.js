@@ -1,45 +1,132 @@
-// 🟢 JS/REPORT.JS - Direct PDF Download (No Print Window) & Custom Header सह
+// 🟢 JS/REPORT.JS - Multi-Select Reports, Direct Copyable PDF, Auto-Fit & Decimals
 
 function formatNumberDecimals(val) {
     if (val === "" || val === null || val === undefined || val === "-" || String(val).trim() === "") return val;
     let n = Number(val);
-    if (!isNaN(n)) {
-        return Number.isInteger(n) ? n : parseFloat(n.toFixed(2));
-    }
+    if (!isNaN(n)) { return Number.isInteger(n) ? n : parseFloat(n.toFixed(2)); }
     return val;
 }
 
-function toggleReportFortnight() {
-    let fId = document.getElementById('reportFormSelect').value;
-    let fnDiv = document.getElementById('reportFortnightDiv');
-    if(!fnDiv) return;
-    
-    if(!fId || fId === "ALL") {
-        fnDiv.style.display = "none";
-        return;
+// 🟢 नवीन: Multi-Select ड्रॉपडाऊनचे फंक्शन्स
+function toggleMultiSelect() {
+    let dropdown = document.getElementById('multiSelectDropdown');
+    dropdown.style.display = dropdown.style.display === "none" ? "block" : "none";
+}
+
+document.addEventListener('click', function(event) {
+    let container = document.getElementById('multiSelectContainer');
+    if (container && !container.contains(event.target)) {
+        document.getElementById('multiSelectDropdown').style.display = 'none';
     }
-    let f = masterData.forms.find(x => x.FormID === fId);
-    if(f && String(f.Frequency).trim().toUpperCase() === "FORTNIGHTLY") {
-        fnDiv.style.display = "block";
+});
+
+function updateMultiSelectUI() {
+    let select = document.getElementById('reportFormSelect');
+    let optionsDiv = document.getElementById('multiSelectOptions');
+    if(!select || !optionsDiv) return;
+
+    optionsDiv.innerHTML = "";
+    Array.from(select.options).forEach(opt => {
+        if(opt.value && opt.value !== "ALL" && opt.value !== "") {
+            let div = document.createElement('div');
+            div.style.padding = "10px";
+            div.style.borderBottom = "1px solid #eee";
+            div.style.cursor = "pointer";
+            div.innerHTML = `<label style="cursor:pointer; display:flex; align-items:center; width:100%; color:#333; font-weight:bold;">
+                <input type="checkbox" class="report-chk" value="${opt.value}" checked onchange="checkIndividualReport()" style="transform:scale(1.2); margin-right:10px;"> 
+                ${opt.text}
+            </label>`;
+            optionsDiv.appendChild(div);
+        }
+    });
+    
+    document.getElementById('chkAllReports').checked = true;
+    updateMultiSelectText();
+    toggleReportFortnight();
+}
+
+function toggleAllReports(chkAll) {
+    let checkboxes = document.querySelectorAll('.report-chk');
+    checkboxes.forEach(chk => chk.checked = chkAll.checked);
+    updateMultiSelectText();
+    toggleReportFortnight();
+}
+
+function checkIndividualReport() {
+    let checkboxes = document.querySelectorAll('.report-chk');
+    let allChecked = true;
+    checkboxes.forEach(chk => { if(!chk.checked) allChecked = false; });
+    document.getElementById('chkAllReports').checked = allChecked;
+    updateMultiSelectText();
+    toggleReportFortnight();
+}
+
+function updateMultiSelectText() {
+    let chkAll = document.getElementById('chkAllReports');
+    let textSpan = document.getElementById('multiSelectBtnText');
+    if(chkAll && chkAll.checked) {
+        textSpan.innerText = "सर्व अहवाल (All Forms)";
+        textSpan.style.color = "var(--primary)";
     } else {
-        fnDiv.style.display = "none";
+        let selected = document.querySelectorAll('.report-chk:checked');
+        if(selected.length === 0) {
+            textSpan.innerText = "-- कोणताही अहवाल निवडलेला नाही --";
+            textSpan.style.color = "red";
+        } else if(selected.length === 1) {
+            let lbl = selected[0].parentElement.innerText.trim();
+            textSpan.innerText = lbl.length > 35 ? lbl.substring(0, 35) + "..." : lbl;
+            textSpan.style.color = "#d35400";
+        } else {
+            textSpan.innerText = `✔️ ${selected.length} अहवाल निवडले`;
+            textSpan.style.color = "green";
+        }
     }
 }
 
-// 🟢 PENDING REPORT LOGIC
+function getSelectedReportIDs() {
+    let chkAll = document.getElementById('chkAllReports');
+    if(chkAll && chkAll.checked) return ["ALL"];
+    let selected = [];
+    document.querySelectorAll('.report-chk:checked').forEach(chk => selected.push(chk.value));
+    return selected;
+}
+
+function toggleReportFortnight() {
+    let selectedIDs = getSelectedReportIDs();
+    let fnDiv = document.getElementById('reportFortnightDiv');
+    if(!fnDiv) return;
+
+    if(selectedIDs.length === 0) { fnDiv.style.display = "none"; return; }
+
+    let showFn = false;
+    if(selectedIDs.includes("ALL")) {
+        showFn = masterData.forms.some(f => String(f.Frequency).trim().toUpperCase() === "FORTNIGHTLY");
+    } else {
+        showFn = selectedIDs.some(id => {
+            let f = masterData.forms.find(x => x.FormID === id);
+            return f && String(f.Frequency).trim().toUpperCase() === "FORTNIGHTLY";
+        });
+    }
+    fnDiv.style.display = showFn ? "block" : "none";
+}
+
+// 🟢 PENDING REPORT LOGIC (Multi-Select सह)
 function generatePendingReport() {
     const selMonth = document.getElementById('reportMonth').value;
     const selYear = document.getElementById('reportYear').value;
-    const reportFormSelect = document.getElementById('reportFormSelect').value;
+    let selectedIDs = getSelectedReportIDs();
     
     if (selMonth === "सर्व" || selYear === "सर्व") { alert("विशिष्ट 'महिना' आणि 'वर्ष' निवडा!"); return; }
+    if (selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
     let groupedData = {}; 
     let filterSubCenter = "सर्व";
     if (document.getElementById('reportSubCenterFilter')) { filterSubCenter = document.getElementById('reportSubCenterFilter').value; }
 
     let formsToCheck = masterData.forms.filter(f => !isFormInactive(f));
-    if(reportFormSelect !== "ALL" && reportFormSelect !== "") { formsToCheck = formsToCheck.filter(f => f.FormID === reportFormSelect); }
+    if(!selectedIDs.includes("ALL")) { 
+        formsToCheck = formsToCheck.filter(f => selectedIDs.includes(f.FormID)); 
+    }
 
     formsToCheck.forEach(f => {
         let allowedRoles = f.AllowedRoles ? f.AllowedRoles.split(',').map(r=>String(r).trim().toUpperCase()) : ["ALL"];
@@ -81,9 +168,9 @@ function generatePendingReport() {
     `;
     
     let displayMonthTitle = selMonth;
-    if(reportFormSelect !== "ALL" && reportFormSelect !== "") {
-        let selectedFormObj = masterData.forms.find(x => x.FormID === reportFormSelect);
-        if(selectedFormObj && String(selectedFormObj.Frequency).trim().toUpperCase() === "FORTNIGHTLY") {
+    if(!selectedIDs.includes("ALL")) {
+        let hasFn = formsToCheck.some(f => String(f.Frequency).trim().toUpperCase() === "FORTNIGHTLY");
+        if(hasFn) {
             let fn = document.getElementById('reportFortnight').value;
             if(fn !== "सर्व") displayMonthTitle = selMonth + " (" + fn + ")";
         }
@@ -147,7 +234,6 @@ function copyPendingListText() {
     navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी यशस्वीरित्या कॉपी झाली!"); });
 }
 
-// 🟢 DIRECT PDF DOWNLOAD (Pending Report)
 function downloadPendingPDF() {
     let element = document.getElementById('pdfExportArea');
     if (!element) return;
@@ -216,23 +302,34 @@ function updateReportSubCenterDropdown() {
 const originalSwitchTab = window.switchTab;
 window.switchTab = function(tab) {
     if(originalSwitchTab) originalSwitchTab(tab);
-    if(tab === 'reports') { updateReportSubCenterDropdown(); }
+    if(tab === 'reports') { 
+        updateReportSubCenterDropdown(); 
+        updateMultiSelectUI(); // ड्रॉपडाऊन बनवणे
+    }
 };
 
-// 🟢 REPORT FETCHING LOGIC
+// 🟢 REPORT FETCHING LOGIC (Multi-Select सह)
 async function fetchReportData() {
-    const formID = document.getElementById('reportFormSelect').value; 
+    let selectedIDs = getSelectedReportIDs();
+    if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
+
     const selMonth = document.getElementById('reportMonth').value; 
     const selYear = document.getElementById('reportYear').value;
-    if(!formID) { alert("कृपया अहवाल निवडा"); return; }
     
     let finalMonth = selMonth;
-    if(formID !== "ALL") {
-        let fObj = masterData.forms.find(x => x.FormID === formID);
-        if(fObj && String(fObj.Frequency).trim().toUpperCase() === "FORTNIGHTLY" && selMonth !== "सर्व") {
-            let fn = document.getElementById('reportFortnight').value;
-            if(fn !== "सर्व") finalMonth = selMonth + " (" + fn + ")";
-        }
+    let hasFn = false;
+    if(selectedIDs.includes("ALL")) {
+        hasFn = masterData.forms.some(f => String(f.Frequency).trim().toUpperCase() === "FORTNIGHTLY");
+    } else {
+        hasFn = selectedIDs.some(id => {
+            let f = masterData.forms.find(x => x.FormID === id);
+            return f && String(f.Frequency).trim().toUpperCase() === "FORTNIGHTLY";
+        });
+    }
+
+    if(hasFn && selMonth !== "सर्व") {
+        let fn = document.getElementById('reportFortnight').value;
+        if(fn !== "सर्व") finalMonth = selMonth + " (" + fn + ")";
     }
 
     let filterSubCenter = "सर्व"; 
@@ -242,7 +339,10 @@ async function fetchReportData() {
     
     document.getElementById('reportLoader').style.display = "block"; document.getElementById('reportContentArea').classList.add('hidden'); document.getElementById('reportTableContainer').innerHTML = "";
     try {
-        const payload = { formID: formID, role: user.role, subcenter: user.subcenter, mobileNo: user.mobile, filterSubCenter: filterSubCenter, month: finalMonth, year: selYear };
+        // डेटाबेसकडे "ALL" पाठवून सगळा डेटा मिळवणे (बॅकएंड कोड बदलू नये म्हणून)
+        let backendFormID = selectedIDs.length === 1 && selectedIDs[0] !== "ALL" ? selectedIDs[0] : "ALL";
+        
+        const payload = { formID: backendFormID, role: user.role, subcenter: user.subcenter, mobileNo: user.mobile, filterSubCenter: filterSubCenter, month: finalMonth, year: selYear };
         const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"getReportData", payload}) });
         const textResponse = await r.text(); const d = JSON.parse(textResponse);
         document.getElementById('reportLoader').style.display = "none";
@@ -250,6 +350,14 @@ async function fetchReportData() {
         if(d.success && d.reports) {
             let finalReports = [];
             d.reports.forEach(rep => {
+                const formObj = masterData.forms.find(x => x.FormName === rep.formName);
+                if(!formObj) return;
+
+                // 🟢 नवीन: निवडलेला अहवाल आहे का ते तपासणे
+                if (!selectedIDs.includes("ALL") && !selectedIDs.includes(formObj.FormID)) {
+                    return; // जो निवडला नाही तो वगळणे
+                }
+
                 let headers = rep.data[0]; if(!headers) return;
                 let dateIndices = [];
                 headers.forEach((h, idx) => {
@@ -278,7 +386,6 @@ async function fetchReportData() {
                 }
                 rep.data = validData;
 
-                const formObj = masterData.forms.find(x => x.FormName === rep.formName);
                 let formTypeStr = formObj ? String(formObj.FormType).trim() : "";
                 let isProgressive = formTypeStr.includes('ProgressiveStats'); let isVertical = formTypeStr.includes('Vertical'); let isList = formTypeStr.includes('List'); 
                 let monthIdx = headers.indexOf("महिना"); let yearIdx = headers.indexOf("वर्ष"); let villageIdx = headers.indexOf("गाव"); if(villageIdx === -1) villageIdx = headers.indexOf("Village"); 
@@ -320,7 +427,6 @@ async function fetchReportData() {
     } catch(e) { document.getElementById('reportLoader').style.display = "none"; alert("एरर: " + e.message); }
 }
 
-// 🟢 RENDER TABLES (Custom Header Design)
 function renderMultipleTables(reports, month, year) {
     let container = document.getElementById('reportTableContainer');
     
@@ -339,7 +445,6 @@ function renderMultipleTables(reports, month, year) {
     let html = actionBtnsHtml;
     let isFirstReport = true; 
     
-    // 🟢 कस्टम हेडरची माहिती तयार करणे
     let phcHeader = filterSubCenter === 'सर्व' ? "प्राथमिक आरोग्य केंद्र भादा" : `प्राथमिक आरोग्य केंद्र भादा (उपकेंद्र: ${filterSubCenter})`;
     let periodText = (month === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${month} ${year !== 'सर्व' ? year : ''}`;
 
@@ -401,7 +506,6 @@ function renderMultipleTables(reports, month, year) {
 
         html += `<div class="${pbClass}" style="background:white; padding:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1); margin-bottom:20px;">`;
         
-        // 🟢 नवीन Custom Header (PHC Name + Report Title)
         html += `<div class="report-header" style="text-align:center; border-bottom:2px solid var(--primary); padding-bottom:10px; margin-bottom:15px;">
             <h2 style="margin:0; color:var(--primary); font-size:22px;">${phcHeader}</h2>
             <h3 style="margin:5px 0 0 0; color:#555; font-size:16px;">अहवालाचे नाव: ${rep.formName} | कालावधी: ${periodText}</h3>
@@ -490,29 +594,24 @@ function downloadConsolidatedPDF() {
 
     let month = document.getElementById('reportMonth').value; 
     let year = document.getElementById('reportYear').value;
-    const formID = document.getElementById('reportFormSelect').value;
-
-    let finalMonth = month;
-    if(formID !== "ALL") {
-        let fObj = masterData.forms.find(x => x.FormID === formID);
-        if(fObj && String(fObj.Frequency).trim().toUpperCase() === "FORTNIGHTLY" && month !== "सर्व") {
-            let fn = document.getElementById('reportFortnight').value;
-            if(fn !== "सर्व") finalMonth = month + " (" + fn + ")";
-        }
-    }
     
-    let periodText = (finalMonth === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${finalMonth} ${year}`;
-    let fileName = `अहवाल_${groupType}_${periodText.replace(/ /g, "_")}`;
+    let periodText = (month === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${month} ${year}`;
+    let fileName = `अहवाल_${groupType}_${periodText.replace(/ /g, "_")}.pdf`;
 
     let element = document.getElementById('reportTableContainer');
+    
+    // PDF बनवण्यासाठी डमी कंटेनर
     let printDiv = document.createElement('div');
     printDiv.innerHTML = element.innerHTML;
+    printDiv.style.background = "#fff";
+    printDiv.style.padding = "10px";
     
-    // अनावश्यक बटणे आणि CSS काढणे
+    // अनावश्यक गोष्टी आणि CSS काढून टाकणे
     printDiv.querySelectorAll('.no-print').forEach(el => el.remove());
     printDiv.querySelectorAll('.table-responsive').forEach(t => { 
         t.style.overflow = 'visible'; 
         t.style.maxHeight = 'none'; 
+        t.style.border = 'none';
     });
     printDiv.querySelectorAll('.sticky-col, .sticky-header-col').forEach(el => {
         el.style.position = 'static';
@@ -540,7 +639,7 @@ function downloadConsolidatedPDF() {
     // 🟢 थेट PDF डाऊनलोड करण्यासाठी html2pdf
     var opt = {
         margin:       0.3,
-        filename:     fileName + '.pdf',
+        filename:     fileName,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { scale: 2, useCORS: true },
         jsPDF:        { unit: 'in', format: 'a4', orientation: isLandscape ? 'landscape' : 'portrait' },
@@ -559,7 +658,6 @@ function downloadConsolidatedPDF() {
     });
 }
 
-// 🟢 DOWNLOAD EXCEL (Custom Header सह)
 function downloadConsolidatedExcel() {
     if(currentReports.length === 0) return;
     
@@ -623,7 +721,6 @@ function downloadConsolidatedExcel() {
 
         let sheetData = []; let merges = []; let headerRowIndices = [];
         
-        // 🟢 Excel मध्ये Custom Header ऍड करणे
         let reportHeader = `अहवालाचे नाव: ${rep.formName} | कालावधी: ${periodText}`;
         sheetData.push([phcHeader]); 
         sheetData.push([reportHeader]); 
