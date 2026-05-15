@@ -1,4 +1,4 @@
-// 🟢 JS/REPORT.JS - Copy करता येणारे PDF, DD-MM-YYYY Date Format, Fortnightly आणि उपकेंद्र फिल्टरसह 
+// 🟢 JS/REPORT.JS - Copyable PDF, Auto-Fit Layout & UTF-8 (Marathi) सह
 
 function toggleReportFortnight() {
     let fId = document.getElementById('reportFormSelect').value;
@@ -17,7 +17,6 @@ function toggleReportFortnight() {
     }
 }
 
-// 🟢 PENDING REPORT LOGIC
 function generatePendingReport() {
     const selMonth = document.getElementById('reportMonth').value;
     const selYear = document.getElementById('reportYear').value;
@@ -127,6 +126,7 @@ function copyPendingListText() {
     navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी यशस्वीरित्या कॉपी झाली!"); });
 }
 
+// 🟢 PENDING PDF DOWNLOAD (मराठी फॉन्टसह)
 function downloadPendingPDF() {
     let titleEl = document.querySelector('#pdfExportArea h2');
     let title = titleEl ? titleEl.innerText.replace(/ /g, "_") : "Pending_Report";
@@ -135,7 +135,7 @@ function downloadPendingPDF() {
     let oldFrame = document.getElementById('pdfPrintFrame'); if (oldFrame) { oldFrame.remove(); }
     const iframe = document.createElement('iframe'); iframe.id = 'pdfPrintFrame'; iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0px'; iframe.style.height = '0px'; iframe.style.border = 'none';
     document.body.appendChild(iframe); let doc = iframe.contentWindow.document; doc.open();
-    doc.write(`<html><head><title>${title}</title><style>body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; color: #000; } h2 { text-align: center; color: #c0392b; border-bottom: 2px solid #ccc; padding-bottom: 10px; } .pdf-group-header { background: #f8f9fa; color: #c0392b; padding: 10px; font-weight: bold; font-size: 16px; margin-top: 20px; border-bottom: 1px solid #c0392b; } table { width: 100%; border-collapse: collapse; margin-top: 10px; } th, td { border: 1px solid #000; padding: 8px; text-align: left; font-size: 14px; } th { background-color: #f2f2f2; font-weight: bold; } td:first-child, th:first-child { text-align: center; width: 10%; } @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }</style></head><body>${printContent}</body></html>`);
+    doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>@page { size: portrait; margin: 10mm; } body { font-family: 'Segoe UI', Arial, sans-serif; padding: 10px; color: #000; } h2 { text-align: center; color: #c0392b; border-bottom: 2px solid #ccc; padding-bottom: 10px; } .pdf-group-header { background: #f8f9fa; color: #c0392b; padding: 10px; font-weight: bold; font-size: 16px; margin-top: 20px; border-bottom: 1px solid #c0392b; } table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; table-layout: fixed; } th, td { border: 1px solid #000; padding: 8px; text-align: left; word-wrap: break-word; } th { background-color: #f2f2f2 !important; font-weight: bold; } td:first-child, th:first-child { text-align: center; width: 10%; } @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } th { background-color: #f2f2f2 !important; } }</style></head><body>${printContent}</body></html>`);
     doc.close(); setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 800);
 }
 
@@ -162,12 +162,10 @@ function getProgressiveTargetMonthsAndYears(selM, selY) {
 function updateReportSubCenterDropdown() {
     let scFilter = document.getElementById('reportSubCenterFilter');
     if(!scFilter || !masterData || !masterData.subCenters) return;
-    
     scFilter.innerHTML = '<option value="सर्व">सर्व उपकेंद्र (All Sub-centers)</option>';
     let uniqueSCs = new Set();
     masterData.subCenters.forEach(sc => uniqueSCs.add(String(sc.SubCenterName).trim()));
     masterData.villages.forEach(v => uniqueSCs.add(String(v.SubCenterID).trim()));
-    
     Array.from(uniqueSCs).filter(s => s && s !== "undefined").sort().forEach(scName => {
         scFilter.innerHTML += `<option value="${scName}">${scName}</option>`;
     });
@@ -203,7 +201,6 @@ async function fetchReportData() {
     document.getElementById('reportLoader').style.display = "block"; document.getElementById('reportContentArea').classList.add('hidden'); document.getElementById('reportTableContainer').innerHTML = "";
     try {
         const payload = { formID: formID, role: user.role, subcenter: user.subcenter, mobileNo: user.mobile, filterSubCenter: filterSubCenter, month: finalMonth, year: selYear };
-        
         const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"getReportData", payload}) });
         const textResponse = await r.text(); const d = JSON.parse(textResponse);
         document.getElementById('reportLoader').style.display = "none";
@@ -212,13 +209,10 @@ async function fetchReportData() {
             let finalReports = [];
             d.reports.forEach(rep => {
                 let headers = rep.data[0]; if(!headers) return;
-                
                 let dateIndices = [];
                 headers.forEach((h, idx) => {
                     let hStr = String(h).toLowerCase();
-                    if(hStr.includes("तारीख") || hStr.includes("दिनांक") || hStr.includes("date")) {
-                        dateIndices.push(idx);
-                    }
+                    if(hStr.includes("तारीख") || hStr.includes("दिनांक") || hStr.includes("date")) dateIndices.push(idx);
                 });
 
                 let validData = [headers];
@@ -293,7 +287,6 @@ function renderMultipleTables(reports, month, year) {
         groupType = document.getElementById('reportGroupFilter') ? document.getElementById('reportGroupFilter').value : "Village";
     }
 
-    // 🟢 PDF डाऊनलोड बटण ॲड केले आहे (no-print क्लाससह)
     let actionBtnsHtml = `<div class="no-print" style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
         <button onclick="downloadConsolidatedExcel()" style="flex:1; min-width:200px; background:#28a745; color:white; border:none; padding:12px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">📥 Excel (.xlsx) डाऊनलोड</button>
         <button id="btnPdfDownload" onclick="downloadConsolidatedPDF()" style="flex:1; min-width:200px; background:#dc3545; color:white; border:none; padding:12px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">📥 PDF (.pdf) डाऊनलोड</button>
@@ -325,12 +318,9 @@ function renderMultipleTables(reports, month, year) {
                     let val = row[idx];
                     if (typeof val === 'object' && val !== null) {
                         if (typeof aggregated[sc][idx] !== 'object') aggregated[sc][idx] = { M: 0, P: 0 };
-                        aggregated[sc][idx].M += parseFloat(val.M || 0);
-                        aggregated[sc][idx].P += parseFloat(val.P || 0);
+                        aggregated[sc][idx].M += parseFloat(val.M || 0); aggregated[sc][idx].P += parseFloat(val.P || 0);
                     } else {
-                        let n = parseFloat(val);
-                        if (!isNaN(n)) aggregated[sc][idx] = (parseFloat(aggregated[sc][idx]) || 0) + n;
-                        else aggregated[sc][idx] = val; 
+                        let n = parseFloat(val); if (!isNaN(n)) aggregated[sc][idx] = (parseFloat(aggregated[sc][idx]) || 0) + n; else aggregated[sc][idx] = val; 
                     }
                 });
             });
@@ -422,7 +412,7 @@ function renderMultipleTables(reports, month, year) {
     container.innerHTML = html;
 }
 
-// 🟢 DOWNLOAD COPYABLE PDF (Auto Portrait/Landscape)
+// 🟢 DOWNLOAD COPYABLE PDF (Auto Portrait/Landscape & Auto-Fit)
 function downloadConsolidatedPDF() {
     if(currentReports.length === 0) return;
 
@@ -452,30 +442,34 @@ function downloadConsolidatedPDF() {
 
     let fileName = `अहवाल_${groupType}_${periodText.replace(/ /g, "_")}`;
 
-    // PDF साठी रिपोर्टचा मूळ HTML घेणे
     let element = document.getElementById('reportTableContainer');
     let printContent = element.innerHTML;
     let titleHtml = `<h2 style="text-align:center; color:#00705a; border-bottom:2px solid #ccc; padding-bottom:10px; margin-top:0;">${currentReports[0].formName} अहवाल - ${periodText}</h2>`;
 
     // 🟢 Portrait / Landscape ठरवणे (कॉलम्सच्या संख्येनुसार)
     let isLandscape = false;
+    let colCount = 0;
     let originalTable = element.querySelector('.report-table');
     if (originalTable) {
-        let colCount = 0;
         let firstRow = originalTable.querySelector('tr');
         if (firstRow) {
             Array.from(firstRow.children).forEach(th => {
                 colCount += parseInt(th.getAttribute('colspan') || 1);
             });
         }
-        // जर कॉलम्स 7 पेक्षा जास्त असतील किंवा टेबलची रुंदी 800px पेक्षा जास्त असेल, तर पेज आडवे (Landscape) करा
         if (colCount > 7 || originalTable.scrollWidth > 800) {
             isLandscape = true;
         }
     }
 
-    // CSS पेज साईझ (Auto Landscape/Portrait)
-    let pageCss = isLandscape ? "@page { size: A4 landscape; margin: 10mm; }" : "@page { size: A4 portrait; margin: 10mm; }";
+    // 🟢 डायनॅमिक फॉन्ट साईज आणि झूम (टेबल कापले जाऊ नये म्हणून)
+    let fontSize = "12px";
+    let zoomLevel = 1;
+    if (colCount > 15) { fontSize = "9px"; zoomLevel = 0.65; }
+    else if (colCount > 10) { fontSize = "10px"; zoomLevel = 0.8; }
+    else if (colCount > 7) { fontSize = "11px"; zoomLevel = 0.9; }
+
+    let pageCss = isLandscape ? "@page { size: landscape; margin: 10mm; }" : "@page { size: portrait; margin: 10mm; }";
 
     let oldFrame = document.getElementById('pdfPrintFrame'); 
     if (oldFrame) { oldFrame.remove(); }
@@ -492,24 +486,27 @@ function downloadConsolidatedPDF() {
     
     let doc = iframe.contentWindow.document; 
     doc.open();
+    // 🟢 '<meta charset="UTF-8">' जोडल्यामुळे 'मे' वगैरे मराठी शब्द अचूक दिसतील!
     doc.write(`
+        <!DOCTYPE html>
         <html>
         <head>
+            <meta charset="UTF-8">
             <title>${fileName}</title>
             <style>
                 ${pageCss}
-                body { font-family: 'Segoe UI', Arial, sans-serif; padding: 10px; color: #000; background: #fff; } 
-                h2 { text-align: center; color: #00705a; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 20px; } 
-                h3 { color: #00705a; }
-                .table-responsive { width: 100%; overflow: visible !important; max-height: none !important; margin-bottom: 20px; }
-                .report-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 11px; page-break-inside: auto; } 
-                .report-table tr { page-break-inside: avoid; page-break-after: auto; }
-                .report-table th, .report-table td { border: 1px solid #000; padding: 6px; text-align: center; word-wrap: break-word; } 
-                .report-table th { background-color: #f2f2f2 !important; font-weight: bold; color: #000 !important; } 
+                body { font-family: 'Segoe UI', Arial, sans-serif; padding: 0; margin: 0; color: #000; background: #fff; zoom: ${zoomLevel}; } 
+                h2 { text-align: center; color: #00705a; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 15px; font-size: 22px; } 
+                .table-responsive { width: 100%; overflow: hidden !important; margin-bottom: 20px; }
+                .report-table { width: 100%; max-width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: ${fontSize}; table-layout: auto; word-wrap: break-word; } 
+                .report-table tr { page-break-inside: avoid; }
+                .report-table th, .report-table td { border: 1px solid #000; padding: 5px; text-align: center; word-wrap: break-word; } 
+                .report-table th { background-color: #e9ecef !important; font-weight: bold; color: #000 !important; } 
                 .no-print { display: none !important; }
                 .sticky-col, .sticky-header-col { position: static !important; background: transparent !important; }
                 @media print { 
                     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
+                    .report-table th { background-color: #e9ecef !important; }
                 }
             </style>
         </head>
@@ -521,13 +518,11 @@ function downloadConsolidatedPDF() {
     `);
     doc.close(); 
     
-    // युजरला प्रोग्रेस दाखवणे
     let btn = document.getElementById('btnPdfDownload');
     let oldText = btn.innerText;
     btn.innerText = "⏳ PDF उघडत आहे...";
     btn.disabled = true;
 
-    // प्रिंट डायलॉग उघडणे
     setTimeout(() => { 
         iframe.contentWindow.focus(); 
         iframe.contentWindow.print(); 
