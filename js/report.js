@@ -1,4 +1,4 @@
-// 🟢 JS/REPORT.JS - New Page Break (प्रत्येक अहवाल नवीन पेजवर) सह
+// 🟢 JS/REPORT.JS - Direct PDF Download (No Print Window) & Custom Header सह
 
 function formatNumberDecimals(val) {
     if (val === "" || val === null || val === undefined || val === "-" || String(val).trim() === "") return val;
@@ -26,7 +26,7 @@ function toggleReportFortnight() {
     }
 }
 
-// 🟢 PENDING REPORT LOGIC (Page Break सह)
+// 🟢 PENDING REPORT LOGIC
 function generatePendingReport() {
     const selMonth = document.getElementById('reportMonth').value;
     const selYear = document.getElementById('reportYear').value;
@@ -76,7 +76,7 @@ function generatePendingReport() {
     downArea.innerHTML = `
         <div style="display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap;">
             <button onclick="copyPendingListText()" style="background:#6c757d; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">📋 यादी कॉपी करा (WhatsApp साठी)</button>
-            <button onclick="downloadPendingPDF()" style="background:#e74c3c; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">📥 PDF डाउनलोड करा</button>
+            <button id="btnPendingPdfDownload" onclick="downloadPendingPDF()" style="background:#e74c3c; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">📥 PDF डाउनलोड करा</button>
         </div>
     `;
     
@@ -89,18 +89,25 @@ function generatePendingReport() {
         }
     }
 
-    let html = `<div id="pdfExportArea" class="pdf-container"><h2 style="text-align:center; color:#c0392b; border-bottom: 2px solid #ccc; padding-bottom:10px;">अपूर्ण अहवाल यादी (${displayMonthTitle} ${selYear})</h2>`;
+    let phcHeader = filterSubCenter === 'सर्व' ? "प्राथमिक आरोग्य केंद्र भादा" : `प्राथमिक आरोग्य केंद्र भादा (उपकेंद्र: ${filterSubCenter})`;
+
+    let html = `<div id="pdfExportArea" class="pdf-container">
+        <div style="text-align:center; border-bottom: 2px solid var(--primary); padding-bottom:10px; margin-bottom:20px;">
+            <h2 style="margin:0; color:var(--primary); font-size:24px;">${phcHeader}</h2>
+            <h3 style="margin:5px 0 0 0; color:#444; font-size:18px;">अपूर्ण अहवाल यादी - कालावधी: ${displayMonthTitle} ${selYear}</h3>
+        </div>`;
+
     let hasData = false;
     let isFirstPending = true;
 
     for(let fName in groupedData) {
         if(groupedData[fName].length > 0) {
             hasData = true;
-            let pbClass = isFirstPending ? "" : "page-break"; // 🟢 पहिल्या अहवालानंतर प्रत्येकाला नवीन पेज
+            let pbClass = isFirstPending ? "" : "page-break"; 
             isFirstPending = false;
             
             html += `<div class="${pbClass}">`;
-            html += `<div class="pdf-group-header">📄 फॉर्म: ${fName}</div>`;
+            html += `<div class="pdf-group-header" style="background:#f8f9fa; color:#c0392b; padding:10px; font-weight:bold; font-size:16px; margin-top:10px; border:1px solid #ddd;">📄 फॉर्म: ${fName}</div>`;
             html += `<table class="report-table pending-data-table" style="width:100%; border-collapse:collapse; margin-bottom:30px;">
                 <thead style="background:#f4f7f6;"><tr>
                 <th style="border: 1px solid #ccc; padding: 8px; width:10%; text-align:center;">अ.क्र.</th>
@@ -126,9 +133,7 @@ function generatePendingReport() {
 }
 
 function copyPendingListText() {
-    let titleEl = document.querySelector('#pdfExportArea h2');
-    let title = titleEl ? titleEl.innerText : "अहवाल अप्राप्त यादी";
-    let textToCopy = `*${title}*\n\n`;
+    let textToCopy = `*अपूर्ण अहवाल यादी*\n\n`;
     let tables = document.querySelectorAll('.pending-data-table');
     if(tables.length === 0) { alert("कॉपी करण्यासाठी कोणतीही माहिती नाही."); return; }
     let formHeaders = document.querySelectorAll('.pdf-group-header');
@@ -142,16 +147,38 @@ function copyPendingListText() {
     navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी यशस्वीरित्या कॉपी झाली!"); });
 }
 
+// 🟢 DIRECT PDF DOWNLOAD (Pending Report)
 function downloadPendingPDF() {
-    let titleEl = document.querySelector('#pdfExportArea h2');
-    let title = titleEl ? titleEl.innerText.replace(/ /g, "_") : "Pending_Report";
+    let element = document.getElementById('pdfExportArea');
+    if (!element) return;
     
-    const printContent = document.getElementById('pdfExportArea').innerHTML;
-    let oldFrame = document.getElementById('pdfPrintFrame'); if (oldFrame) { oldFrame.remove(); }
-    const iframe = document.createElement('iframe'); iframe.id = 'pdfPrintFrame'; iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0px'; iframe.style.height = '0px'; iframe.style.border = 'none';
-    document.body.appendChild(iframe); let doc = iframe.contentWindow.document; doc.open();
-    doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>@page { size: portrait; margin: 10mm; } body { font-family: 'Segoe UI', Arial, sans-serif; padding: 10px; color: #000; } h2 { text-align: center; color: #c0392b; border-bottom: 2px solid #ccc; padding-bottom: 10px; } .pdf-group-header { background: #f8f9fa; color: #c0392b; padding: 10px; font-weight: bold; font-size: 16px; margin-top: 20px; border-bottom: 1px solid #c0392b; } table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; table-layout: fixed; } th, td { border: 1px solid #000; padding: 8px; text-align: left; word-wrap: break-word; white-space: normal !important; overflow-wrap: break-word; } th { background-color: #f2f2f2 !important; font-weight: bold; } td:first-child, th:first-child { text-align: center; width: 10%; } @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } th { background-color: #f2f2f2 !important; } .page-break { page-break-before: always !important; display: block; } }</style></head><body>${printContent}</body></html>`);
-    doc.close(); setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 800);
+    let printDiv = document.createElement('div');
+    printDiv.innerHTML = element.innerHTML;
+    printDiv.style.background = "#fff";
+    printDiv.style.padding = "10px";
+    
+    let btn = document.getElementById('btnPendingPdfDownload');
+    let oldText = btn.innerText;
+    btn.innerText = "⏳ PDF डाऊनलोड होत आहे...";
+    btn.disabled = true;
+
+    var opt = {
+        margin:       0.3,
+        filename:     'अपूर्ण_अहवाल_यादी.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'] }
+    };
+
+    html2pdf().set(opt).from(printDiv).save().then(() => {
+        btn.innerText = oldText;
+        btn.disabled = false;
+    }).catch(() => {
+        alert("PDF डाऊनलोड करताना त्रुटी आली.");
+        btn.innerText = oldText;
+        btn.disabled = false;
+    });
 }
 
 function getTotalsRow(data, headers, showIndices) {
@@ -293,23 +320,29 @@ async function fetchReportData() {
     } catch(e) { document.getElementById('reportLoader').style.display = "none"; alert("एरर: " + e.message); }
 }
 
-// 🟢 RENDER TABLES (Page Break सह)
+// 🟢 RENDER TABLES (Custom Header Design)
 function renderMultipleTables(reports, month, year) {
     let container = document.getElementById('reportTableContainer');
     
     let groupType = "Village";
+    let filterSubCenter = "सर्व";
     if (user.role === 'Admin' || user.role === 'MANAGER' || user.role === 'VIEWER') {
         groupType = document.getElementById('reportGroupFilter') ? document.getElementById('reportGroupFilter').value : "Village";
+        filterSubCenter = document.getElementById('reportSubCenterFilter') ? document.getElementById('reportSubCenterFilter').value : "सर्व";
     }
 
     let actionBtnsHtml = `<div class="no-print" style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
         <button onclick="downloadConsolidatedExcel()" style="flex:1; min-width:200px; background:#28a745; color:white; border:none; padding:12px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">📥 Excel (.xlsx) डाऊनलोड</button>
-        <button id="btnPdfDownload" onclick="downloadConsolidatedPDF()" style="flex:1; min-width:200px; background:#dc3545; color:white; border:none; padding:12px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">📥 PDF (.pdf) डाऊनलोड</button>
+        <button id="btnPdfDownload" onclick="downloadConsolidatedPDF()" style="flex:1; min-width:200px; background:#dc3545; color:white; border:none; padding:12px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">📥 PDF (.pdf) थेट डाऊनलोड</button>
     </div>`;
     
     let html = actionBtnsHtml;
-    let isFirstReport = true; // 🟢 पहिल्या अहवालाला पेज ब्रेक नको
+    let isFirstReport = true; 
     
+    // 🟢 कस्टम हेडरची माहिती तयार करणे
+    let phcHeader = filterSubCenter === 'सर्व' ? "प्राथमिक आरोग्य केंद्र भादा" : `प्राथमिक आरोग्य केंद्र भादा (उपकेंद्र: ${filterSubCenter})`;
+    let periodText = (month === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${month} ${year !== 'सर्व' ? year : ''}`;
+
     reports.forEach(rep => {
         let data = rep.data; let headers = data[0];
         let showIndices = []; headers.forEach((h, i) => { if(!CONFIG.hiddenColumns.includes(h) && h !== "गाव" && h !== "Village") showIndices.push(i); });
@@ -363,11 +396,16 @@ function renderMultipleTables(reports, month, year) {
         }
 
         let groupKeys = Object.keys(groups).sort();
-        let pbClass = isFirstReport ? "" : "page-break"; // 🟢 पेज ब्रेक
+        let pbClass = isFirstReport ? "" : "page-break"; 
         isFirstReport = false;
 
         html += `<div class="${pbClass}" style="background:white; padding:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1); margin-bottom:20px;">`;
-        html += `<h3 style="color:var(--primary); border-bottom:2px solid var(--primary); padding-bottom:10px;">${rep.formName} अहवाल ${groupType !== 'Village' ? '(उपकेंद्रनिहाय)' : '(गावनिहाय)'}</h3>`;
+        
+        // 🟢 नवीन Custom Header (PHC Name + Report Title)
+        html += `<div class="report-header" style="text-align:center; border-bottom:2px solid var(--primary); padding-bottom:10px; margin-bottom:15px;">
+            <h2 style="margin:0; color:var(--primary); font-size:22px;">${phcHeader}</h2>
+            <h3 style="margin:5px 0 0 0; color:#555; font-size:16px;">अहवालाचे नाव: ${rep.formName} | कालावधी: ${periodText}</h3>
+        </div>`;
 
         groupKeys.forEach((gKey) => {
             let gRows = groups[gKey]; let [sc, ename] = gKey.split("###");
@@ -438,7 +476,7 @@ function renderMultipleTables(reports, month, year) {
     container.innerHTML = html;
 }
 
-// 🟢 DOWNLOAD COPYABLE PDF
+// 🟢 DIRECT PDF DOWNLOAD (No Print Window)
 function downloadConsolidatedPDF() {
     if(currentReports.length === 0) return;
 
@@ -464,13 +502,21 @@ function downloadConsolidatedPDF() {
     }
     
     let periodText = (finalMonth === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${finalMonth} ${year}`;
-    if((user.role === 'Admin' || user.role === 'VIEWER' || user.role === 'MANAGER') && filterSubCenter !== 'सर्व') periodText += ` (${filterSubCenter})`;
-
     let fileName = `अहवाल_${groupType}_${periodText.replace(/ /g, "_")}`;
 
     let element = document.getElementById('reportTableContainer');
-    let printContent = element.innerHTML;
-    let titleHtml = `<h2 style="text-align:center; color:#00705a; border-bottom:2px solid #ccc; padding-bottom:10px; margin-top:0;">${currentReports[0].formName} अहवाल - ${periodText}</h2>`;
+    let printDiv = document.createElement('div');
+    printDiv.innerHTML = element.innerHTML;
+    
+    // अनावश्यक बटणे आणि CSS काढणे
+    printDiv.querySelectorAll('.no-print').forEach(el => el.remove());
+    printDiv.querySelectorAll('.table-responsive').forEach(t => { 
+        t.style.overflow = 'visible'; 
+        t.style.maxHeight = 'none'; 
+    });
+    printDiv.querySelectorAll('.sticky-col, .sticky-header-col').forEach(el => {
+        el.style.position = 'static';
+    });
 
     let isLandscape = false;
     let colCount = 0;
@@ -482,81 +528,38 @@ function downloadConsolidatedPDF() {
                 colCount += parseInt(th.getAttribute('colspan') || 1);
             });
         }
-        if (colCount > 7 || originalTable.scrollWidth > 800) {
-            isLandscape = true;
-        }
+        if (colCount > 7 || originalTable.scrollWidth > 800) { isLandscape = true; }
     }
 
-    let fontSize = "12px";
-    let zoomLevel = 1;
-    if (colCount > 15) { fontSize = "9px"; zoomLevel = 0.65; }
-    else if (colCount > 10) { fontSize = "10px"; zoomLevel = 0.8; }
-    else if (colCount > 7) { fontSize = "11px"; zoomLevel = 0.9; }
-
-    let pageCss = isLandscape ? "@page { size: landscape; margin: 10mm; }" : "@page { size: portrait; margin: 10mm; }";
-
-    let oldFrame = document.getElementById('pdfPrintFrame'); 
-    if (oldFrame) { oldFrame.remove(); }
-    
-    const iframe = document.createElement('iframe'); 
-    iframe.id = 'pdfPrintFrame'; 
-    iframe.style.position = 'fixed'; 
-    iframe.style.right = '0'; 
-    iframe.style.bottom = '0'; 
-    iframe.style.width = '0px'; 
-    iframe.style.height = '0px'; 
-    iframe.style.border = 'none';
-    document.body.appendChild(iframe); 
-    
-    let doc = iframe.contentWindow.document; 
-    doc.open();
-    // 🟢 page-break-before: always !important; जोडले आहे जेणेकरून प्रत्येक अहवाल नवीन पानावर येईल
-    doc.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>${fileName}</title>
-            <style>
-                ${pageCss}
-                body { font-family: 'Segoe UI', Arial, sans-serif; padding: 0; margin: 0; color: #000; background: #fff; zoom: ${zoomLevel}; } 
-                h2 { text-align: center; color: #00705a; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 15px; font-size: 22px; } 
-                .table-responsive { width: 100%; overflow: hidden !important; margin-bottom: 20px; }
-                .report-table { width: 100%; max-width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: ${fontSize}; table-layout: auto; word-wrap: break-word; } 
-                .report-table tr { page-break-inside: avoid; }
-                .report-table th, .report-table td { border: 1px solid #000; padding: 5px; text-align: center; word-break: break-word; overflow-wrap: break-word; white-space: normal !important; } 
-                .report-table th { background-color: #e9ecef !important; font-weight: bold; color: #000 !important; } 
-                .no-print { display: none !important; }
-                .sticky-col, .sticky-header-col { position: static !important; background: transparent !important; }
-                @media print { 
-                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
-                    .report-table th { background-color: #e9ecef !important; }
-                    .page-break { page-break-before: always !important; display: block; }
-                }
-            </style>
-        </head>
-        <body>
-            ${titleHtml}
-            ${printContent}
-        </body>
-        </html>
-    `);
-    doc.close(); 
-    
     let btn = document.getElementById('btnPdfDownload');
     let oldText = btn.innerText;
-    btn.innerText = "⏳ PDF उघडत आहे...";
+    btn.innerText = "⏳ PDF डाऊनलोड होत आहे...";
+    btn.style.opacity = "0.7";
     btn.disabled = true;
 
-    setTimeout(() => { 
-        iframe.contentWindow.focus(); 
-        iframe.contentWindow.print(); 
+    // 🟢 थेट PDF डाऊनलोड करण्यासाठी html2pdf
+    var opt = {
+        margin:       0.3,
+        filename:     fileName + '.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: isLandscape ? 'landscape' : 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'] }
+    };
+
+    html2pdf().set(opt).from(printDiv).save().then(() => {
         btn.innerText = oldText;
+        btn.style.opacity = "1";
         btn.disabled = false;
-    }, 1000);
+    }).catch(() => {
+        alert("PDF डाउनलोड करताना त्रुटी आली. कृपया पुन्हा प्रयत्न करा.");
+        btn.innerText = oldText;
+        btn.style.opacity = "1";
+        btn.disabled = false;
+    });
 }
 
-// 🟢 DOWNLOAD EXCEL
+// 🟢 DOWNLOAD EXCEL (Custom Header सह)
 function downloadConsolidatedExcel() {
     if(currentReports.length === 0) return;
     
@@ -583,7 +586,7 @@ function downloadConsolidatedExcel() {
     }
     
     let periodText = (finalMonth === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${finalMonth} ${year}`;
-    if((user.role === 'Admin' || user.role === 'VIEWER' || user.role === 'MANAGER') && filterSubCenter !== 'सर्व') periodText += ` (${filterSubCenter})`;
+    let phcHeader = filterSubCenter === 'सर्व' ? "प्राथमिक आरोग्य केंद्र भादा" : `प्राथमिक आरोग्य केंद्र भादा (उपकेंद्र: ${filterSubCenter})`;
 
     currentReports.forEach((rep, index) => {
         let headers = rep.data[0]; let showIndices = []; 
@@ -619,8 +622,14 @@ function downloadConsolidatedExcel() {
         }
 
         let sheetData = []; let merges = []; let headerRowIndices = [];
-        sheetData.push([`${rep.formName} अहवाल (${periodText})`]); 
+        
+        // 🟢 Excel मध्ये Custom Header ऍड करणे
+        let reportHeader = `अहवालाचे नाव: ${rep.formName} | कालावधी: ${periodText}`;
+        sheetData.push([phcHeader]); 
+        sheetData.push([reportHeader]); 
         sheetData.push([]); 
+
+        let startR = 3;
 
         if (isVertical) {
             if (groupType === "SubCenterConsolidated") {
@@ -631,8 +640,11 @@ function downloadConsolidatedExcel() {
                 });
                 if (isProgressive) { verticalHeaders.push("एकूण/मासिक"); verticalHeaders.push("एकूण/प्रगत"); } else { verticalHeaders.push("एकूण"); }
                 
-                merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: verticalHeaders.length - 1 } });
-                sheetData.push(verticalHeaders); headerRowIndices.push(2);
+                let maxCol = verticalHeaders.length;
+                merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: maxCol - 1 } });
+                merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: maxCol - 1 } });
+                
+                sheetData.push(verticalHeaders); headerRowIndices.push(startR);
 
                 showIndices.forEach((idx, vIndex) => {
                     let rowData = [vIndex + 1, headers[idx]]; let rowTotalM = 0; let rowTotalP = 0;
@@ -647,9 +659,11 @@ function downloadConsolidatedExcel() {
             } else {
                 let verticalColCount = 2 + (dataRows.length * (isProgressive ? 2 : 1)) + (isProgressive ? 2 : 1);
                 merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: verticalColCount - 1 } });
+                merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: verticalColCount - 1 } });
                 
                 let r1 = Array(verticalColCount).fill(""); let r2 = isProgressive ? Array(verticalColCount).fill("") : null;
-                let currentR = 2; r1[0] = "अ.क्र."; r1[1] = "तपशील / प्रश्न";
+                let currentR = startR; 
+                r1[0] = "अ.क्र."; r1[1] = "तपशील / प्रश्न";
                 if(isProgressive) { merges.push({ s: { r: currentR, c: 0 }, e: { r: currentR + 1, c: 0 } }); merges.push({ s: { r: currentR, c: 1 }, e: { r: currentR + 1, c: 1 } }); }
                 
                 let cIndex = 2;
@@ -682,7 +696,8 @@ function downloadConsolidatedExcel() {
             showIndices.forEach(idx => modifiedHeaders.push(headers[idx]));
             
             merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: modifiedHeaders.length - 1 } });
-            sheetData.push(modifiedHeaders); headerRowIndices.push(2);
+            merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: modifiedHeaders.length - 1 } });
+            sheetData.push(modifiedHeaders); headerRowIndices.push(startR);
 
             dataRows.forEach((r, rowIndex) => {
                 let rowData = [rowIndex + 1];
@@ -713,6 +728,7 @@ function downloadConsolidatedExcel() {
                 let cellRef = XLSX.utils.encode_cell({r: R, c: C}); if(!ws[cellRef]) continue;
                 let cellStyle = { font: { name: "Arial", sz: 11, color: { rgb: "000000" } }, alignment: { vertical: "center", horizontal: "center", wrapText: true } };
                 if(R === 0) { cellStyle.fill = { fgColor: { rgb: "00705A" } }; cellStyle.font = { name: "Arial", sz: 14, bold: true, color: { rgb: "FFFFFF" } }; } 
+                else if(R === 1) { cellStyle.fill = { fgColor: { rgb: "E8F5E9" } }; cellStyle.font = { name: "Arial", sz: 12, bold: true, color: { rgb: "00705A" } }; } 
                 else if(headerRowIndices.includes(R)) { cellStyle.fill = { fgColor: { rgb: "F4B400" } }; cellStyle.font = { name: "Arial", sz: 11, bold: true, color: { rgb: "000000" } }; cellStyle.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } }; } 
                 else { cellStyle.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } }; if (isVertical && C === 1) cellStyle.alignment.horizontal = "left"; }
                 ws[cellRef].s = cellStyle;
