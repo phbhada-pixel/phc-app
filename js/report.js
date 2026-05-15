@@ -1,11 +1,9 @@
-// 🟢 JS/REPORT.JS - 2 Decimal Places, Auto-Wrap PDF, Fortnightly & Subcenter Filter सह
+// 🟢 JS/REPORT.JS - New Page Break (प्रत्येक अहवाल नवीन पेजवर) सह
 
-// 🟢 नवीन ग्लोबल फंक्शन: आकड्यांना जास्तीत जास्त २ दशांश स्थळांपर्यंत (Upto 2 Decimals) सेट करण्यासाठी
 function formatNumberDecimals(val) {
     if (val === "" || val === null || val === undefined || val === "-" || String(val).trim() === "") return val;
     let n = Number(val);
     if (!isNaN(n)) {
-        // जर पूर्ण संख्या असेल तर तशीच ठेवा, अन्यथा २ दशांश स्थळांपर्यंत राउंड करा
         return Number.isInteger(n) ? n : parseFloat(n.toFixed(2));
     }
     return val;
@@ -28,7 +26,7 @@ function toggleReportFortnight() {
     }
 }
 
-// 🟢 PENDING REPORT LOGIC
+// 🟢 PENDING REPORT LOGIC (Page Break सह)
 function generatePendingReport() {
     const selMonth = document.getElementById('reportMonth').value;
     const selYear = document.getElementById('reportYear').value;
@@ -93,9 +91,15 @@ function generatePendingReport() {
 
     let html = `<div id="pdfExportArea" class="pdf-container"><h2 style="text-align:center; color:#c0392b; border-bottom: 2px solid #ccc; padding-bottom:10px;">अपूर्ण अहवाल यादी (${displayMonthTitle} ${selYear})</h2>`;
     let hasData = false;
+    let isFirstPending = true;
+
     for(let fName in groupedData) {
         if(groupedData[fName].length > 0) {
             hasData = true;
+            let pbClass = isFirstPending ? "" : "page-break"; // 🟢 पहिल्या अहवालानंतर प्रत्येकाला नवीन पेज
+            isFirstPending = false;
+            
+            html += `<div class="${pbClass}">`;
             html += `<div class="pdf-group-header">📄 फॉर्म: ${fName}</div>`;
             html += `<table class="report-table pending-data-table" style="width:100%; border-collapse:collapse; margin-bottom:30px;">
                 <thead style="background:#f4f7f6;"><tr>
@@ -113,7 +117,7 @@ function generatePendingReport() {
                         <span style="color:#0056b3; font-weight:bold;">${empName}</span> - <span style="color:#d35400; font-weight:bold;">${scName}</span> <span style="color:#28a745; font-weight:bold;">(${villagesStr})</span>
                     </td></tr>`;
             });
-            html += `</tbody></table>`;
+            html += `</tbody></table></div>`;
         }
     }
 
@@ -146,7 +150,7 @@ function downloadPendingPDF() {
     let oldFrame = document.getElementById('pdfPrintFrame'); if (oldFrame) { oldFrame.remove(); }
     const iframe = document.createElement('iframe'); iframe.id = 'pdfPrintFrame'; iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0px'; iframe.style.height = '0px'; iframe.style.border = 'none';
     document.body.appendChild(iframe); let doc = iframe.contentWindow.document; doc.open();
-    doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>@page { size: portrait; margin: 10mm; } body { font-family: 'Segoe UI', Arial, sans-serif; padding: 10px; color: #000; } h2 { text-align: center; color: #c0392b; border-bottom: 2px solid #ccc; padding-bottom: 10px; } .pdf-group-header { background: #f8f9fa; color: #c0392b; padding: 10px; font-weight: bold; font-size: 16px; margin-top: 20px; border-bottom: 1px solid #c0392b; } table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; table-layout: fixed; } th, td { border: 1px solid #000; padding: 8px; text-align: left; word-wrap: break-word; white-space: normal !important; overflow-wrap: break-word; } th { background-color: #f2f2f2 !important; font-weight: bold; } td:first-child, th:first-child { text-align: center; width: 10%; } @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } th { background-color: #f2f2f2 !important; } }</style></head><body>${printContent}</body></html>`);
+    doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>@page { size: portrait; margin: 10mm; } body { font-family: 'Segoe UI', Arial, sans-serif; padding: 10px; color: #000; } h2 { text-align: center; color: #c0392b; border-bottom: 2px solid #ccc; padding-bottom: 10px; } .pdf-group-header { background: #f8f9fa; color: #c0392b; padding: 10px; font-weight: bold; font-size: 16px; margin-top: 20px; border-bottom: 1px solid #c0392b; } table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; table-layout: fixed; } th, td { border: 1px solid #000; padding: 8px; text-align: left; word-wrap: break-word; white-space: normal !important; overflow-wrap: break-word; } th { background-color: #f2f2f2 !important; font-weight: bold; } td:first-child, th:first-child { text-align: center; width: 10%; } @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } th { background-color: #f2f2f2 !important; } .page-break { page-break-before: always !important; display: block; } }</style></head><body>${printContent}</body></html>`);
     doc.close(); setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 800);
 }
 
@@ -157,7 +161,6 @@ function getTotalsRow(data, headers, showIndices) {
         if(colName.includes("मोबाईल") || colName.includes("क्रमांक") || colName === "तारीख" || colName === "महिना" || colName === "वर्ष" || colName === "उपकेंद्र" || colName === "गाव" || colName === "ग्रामपंचायत" || colName.includes("नाव") || colName.includes("स्तर")) { continue; }
         let isNum = false; let colSum = 0;
         for(let r=1; r<data.length; r++) { let val = String(data[r][c] || "").trim(); if(val !== "" && val !== "-") { if(!isNaN(val)) { isNum = true; colSum += parseFloat(val); } else { isNum = false; break; } } }
-        // 🟢 दशांश स्थळे (Decimals) २ पर्यंत सेट करणे
         if(isNum) { isNumericCol[c] = true; totals[c] = formatNumberDecimals(colSum); }
     }
     return { totals, isNumericCol };
@@ -290,7 +293,7 @@ async function fetchReportData() {
     } catch(e) { document.getElementById('reportLoader').style.display = "none"; alert("एरर: " + e.message); }
 }
 
-// 🟢 RENDER TABLES (Decimal Places लागू केले आहेत)
+// 🟢 RENDER TABLES (Page Break सह)
 function renderMultipleTables(reports, month, year) {
     let container = document.getElementById('reportTableContainer');
     
@@ -305,6 +308,7 @@ function renderMultipleTables(reports, month, year) {
     </div>`;
     
     let html = actionBtnsHtml;
+    let isFirstReport = true; // 🟢 पहिल्या अहवालाला पेज ब्रेक नको
     
     reports.forEach(rep => {
         let data = rep.data; let headers = data[0];
@@ -359,7 +363,10 @@ function renderMultipleTables(reports, month, year) {
         }
 
         let groupKeys = Object.keys(groups).sort();
-        html += `<div style="background:white; padding:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1); margin-bottom:20px;">`;
+        let pbClass = isFirstReport ? "" : "page-break"; // 🟢 पेज ब्रेक
+        isFirstReport = false;
+
+        html += `<div class="${pbClass}" style="background:white; padding:15px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1); margin-bottom:20px;">`;
         html += `<h3 style="color:var(--primary); border-bottom:2px solid var(--primary); padding-bottom:10px;">${rep.formName} अहवाल ${groupType !== 'Village' ? '(उपकेंद्रनिहाय)' : '(गावनिहाय)'}</h3>`;
 
         groupKeys.forEach((gKey) => {
@@ -398,13 +405,8 @@ function renderMultipleTables(reports, month, year) {
                     gRows.forEach(row => {
                         let val = row[v.idxM]; 
                         let m = (typeof val === 'object' && val !== null) ? val.M : val;
-                        // 🟢 दशांश स्थळे (Decimals) २ पर्यंत
                         tbodyHtml += `<td>${m !== undefined && m !== "" ? formatNumberDecimals(m) : "-"}</td>`; if(!isNaN(parseFloat(m))) rowTotM += parseFloat(m);
-                        if(isProgressive) { 
-                            let p = (typeof val === 'object' && val !== null) ? val.P : val; 
-                            tbodyHtml += `<td>${p !== undefined && p !== "" ? formatNumberDecimals(p) : "-"}</td>`; 
-                            if(!isNaN(parseFloat(p))) rowTotP += parseFloat(p); 
-                        }
+                        if(isProgressive) { let p = (typeof val === 'object' && val !== null) ? val.P : val; tbodyHtml += `<td>${p !== undefined && p !== "" ? formatNumberDecimals(p) : "-"}</td>`; if(!isNaN(parseFloat(p))) rowTotP += parseFloat(p); }
                     });
                     tbodyHtml += `<td style="font-weight:bold; background:#e8f5e9;">${formatNumberDecimals(rowTotM)}</td>`;
                     if(isProgressive) tbodyHtml += `<td style="font-weight:bold; background:#e8f5e9;">${formatNumberDecimals(rowTotP)}</td>`;
@@ -436,7 +438,7 @@ function renderMultipleTables(reports, month, year) {
     container.innerHTML = html;
 }
 
-// 🟢 DOWNLOAD COPYABLE PDF (Auto-Wrap & Format)
+// 🟢 DOWNLOAD COPYABLE PDF
 function downloadConsolidatedPDF() {
     if(currentReports.length === 0) return;
 
@@ -508,7 +510,7 @@ function downloadConsolidatedPDF() {
     
     let doc = iframe.contentWindow.document; 
     doc.open();
-    // 🟢 Auto-Wrap CSS: word-break: break-word; white-space: normal;
+    // 🟢 page-break-before: always !important; जोडले आहे जेणेकरून प्रत्येक अहवाल नवीन पानावर येईल
     doc.write(`
         <!DOCTYPE html>
         <html>
@@ -529,6 +531,7 @@ function downloadConsolidatedPDF() {
                 @media print { 
                     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
                     .report-table th { background-color: #e9ecef !important; }
+                    .page-break { page-break-before: always !important; display: block; }
                 }
             </style>
         </head>
@@ -553,7 +556,7 @@ function downloadConsolidatedPDF() {
     }, 1000);
 }
 
-// 🟢 DOWNLOAD EXCEL (Decimal Places सह)
+// 🟢 DOWNLOAD EXCEL
 function downloadConsolidatedExcel() {
     if(currentReports.length === 0) return;
     
