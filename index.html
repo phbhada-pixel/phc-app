@@ -130,11 +130,11 @@
                 <h3>मासिक अहवाल डाउनलोड करा</h3>
                 <div class="row-flex" id="adminRoleFilterDiv" style="margin-bottom: 15px; display: none; background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; gap: 15px; flex-wrap: wrap;">
                     <div style="flex: 1; min-width: 200px;">
-    <label style="font-weight:bold; color:#31708f;">उपकेंद्र निवडा (Sub-Center):</label>
-    <select id="reportSubCenterFilter" style="border: 1px solid #0056b3; padding: 5px; border-radius: 4px; width: 100%;">
-        <option value="सर्व">सर्व उपकेंद्र (All Sub-centers)</option>
-        </select>
-</div>
+                        <label style="font-weight:bold; color:#31708f;">उपकेंद्र निवडा (Sub-Center):</label>
+                        <select id="reportSubCenterFilter" style="border: 1px solid #0056b3; padding: 5px; border-radius: 4px; width: 100%;">
+                            <option value="सर्व">सर्व उपकेंद्र (All Sub-centers)</option>
+                        </select>
+                    </div>
                     <div style="flex: 1; min-width: 200px;">
                         <label style="font-weight:bold; color:#31708f;">अहवाल गट (Grouping):</label>
                         <select id="reportGroupFilter" style="border: 1px solid #0056b3;">
@@ -145,9 +145,28 @@
                     </div>
                 </div>
 
-                <div class="row-flex" style="margin-bottom: 15px;">
-                    <div style="flex: 2;"><label>अहवाल निवडा:</label><select id="reportFormSelect" onchange="toggleReportFortnight()"></select></div>
+                <div class="row-flex" style="margin-bottom: 15px; position:relative; z-index: 50;">
+                    <div style="flex: 2;">
+                        <label style="font-weight:bold; color:#31708f;">अहवाल निवडा (एक किंवा अनेक):</label>
+                        <div id="multiSelectContainer" style="position: relative; margin-top:5px;">
+                            <button type="button" id="multiSelectBtn" onclick="toggleMultiSelect()" style="width: 100%; padding: 12px; text-align: left; background: #fff; border: 1px solid #0056b3; border-radius: 4px; font-weight: bold; color: #333; display:flex; justify-content: space-between; align-items:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                                <span id="multiSelectBtnText" style="color:var(--primary);">सर्व अहवाल (All Forms)</span>
+                                <span>🔽</span>
+                            </button>
+                            <div id="multiSelectDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 2px solid #0056b3; border-radius:0 0 8px 8px; z-index: 1000; max-height: 250px; overflow-y: auto; box-shadow: 0 8px 16px rgba(0,0,0,0.15);">
+                                <div style="padding: 12px; border-bottom: 2px solid #0056b3; background: #e8f4f8; position:sticky; top:0; z-index:10;">
+                                    <label style="font-weight:bold; color:#d35400; cursor:pointer; display:flex; align-items:center;">
+                                        <input type="checkbox" id="chkAllReports" value="ALL" checked onchange="toggleAllReports(this)" style="transform:scale(1.3); margin-right:10px;"> 
+                                        सर्व अहवाल एकत्रित काढा
+                                    </label>
+                                </div>
+                                <div id="multiSelectOptions" style="padding: 5px;"></div>
+                            </div>
+                        </div>
+                        <select id="reportFormSelect" style="display:none;"></select>
+                    </div>
                 </div>
+
                 <div class="row-flex" style="margin-bottom: 15px;">
                     <div style="flex:1;"><label>महिना:</label><select id="reportMonth">
                         <option value="सर्व">सर्व महिने</option><option value="जानेवारी">जानेवारी</option><option value="फेब्रुवारी">फेब्रुवारी</option>
@@ -239,29 +258,26 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=34"></script>
-    <script src="js/entry.js?v=34"></script>
-    <script src="js/edit.js?v=34"></script>
-    <script src="js/report.js?v=34"></script>
-    <script src="js/admin.js?v=34"></script>
+    <script src="js/config.js?v=45"></script>
+    <script src="js/entry.js?v=45"></script>
+    <script src="js/edit.js?v=45"></script>
+    <script src="js/report.js?v=45"></script>
+    <script src="js/admin.js?v=45"></script>
     <script>
       window.addEventListener('load', () => {
           setTimeout(() => {
               const today = new Date();
-              // जावास्क्रिप्टमध्ये महिन्यांची यादी (० ते ११)
               const marathiMonths = ["जानेवारी", "फेब्रुवारी", "मार्च", "एप्रिल", "मे", "जून", "जुलै", "ऑगस्ट", "सप्टेंबर", "ऑक्टोबर", "नोव्हेंबर", "डिसेंबर"];
               
-              const currentMonth = marathiMonths[today.getMonth()]; // चालू महिना (उदा. 'मे')
-              const currentYear = today.getFullYear().toString(); // चालू वर्ष (उदा. '2026')
-              const currentFortnight = today.getDate() <= 15 ? "१ ते १५" : "१६ ते अखेर"; // चालू पंधरवडा
+              const currentMonth = marathiMonths[today.getMonth()]; 
+              const currentYear = today.getFullYear().toString(); 
+              const currentFortnight = today.getDate() <= 15 ? "१ ते १५" : "१६ ते अखेर"; 
 
-              // १. डेटा एंट्री, एडिट आणि रिपोर्टचे महिने आपोआप सेट करा
               ['selMonth', 'editMonth', 'reportMonth'].forEach(id => {
                   let el = document.getElementById(id);
                   if(el) el.value = currentMonth;
               });
 
-              // २. चालू वर्ष आपोआप सेट करा
               ['selYear', 'editYear', 'reportYear'].forEach(id => {
                   let el = document.getElementById(id);
                   if(el) {
@@ -272,17 +288,15 @@
                   }
               });
 
-              // ३. चालू पंधरवडा आपोआप सेट करा
               ['selFortnight', 'editFortnight', 'reportFortnight'].forEach(id => {
                   let el = document.getElementById(id);
                   if(el) el.value = currentFortnight;
               });
 
-              // बदल झाल्यानंतर गावे आणि फॉर्म्सची यादी अपडेट (Refresh) करा
               if(typeof updateFormDropdowns === "function") updateFormDropdowns();
               if(typeof updateVillageDropdown === "function") updateVillageDropdown();
               if(typeof updateEditVillageDropdown === "function") updateEditVillageDropdown();
-          }, 800); // ॲप चालू झाल्यावर एका सेकंदाच्या आत हे काम होईल
+          }, 800); 
       });
     </script>
 
