@@ -1,4 +1,4 @@
-// 🟢 JS/REPORT.JS - PDF Download (Auto Portrait/Landscape) आणि Excel सह
+// 🟢 JS/REPORT.JS - Copy करता येणारे PDF, DD-MM-YYYY Date Format, Fortnightly आणि उपकेंद्र फिल्टरसह 
 
 function toggleReportFortnight() {
     let fId = document.getElementById('reportFormSelect').value;
@@ -179,7 +179,7 @@ window.switchTab = function(tab) {
     if(tab === 'reports') { updateReportSubCenterDropdown(); }
 };
 
-// 🟢 REPORT FETCHING LOGIC 
+// 🟢 REPORT FETCHING LOGIC
 async function fetchReportData() {
     const formID = document.getElementById('reportFormSelect').value; 
     const selMonth = document.getElementById('reportMonth').value; 
@@ -284,7 +284,7 @@ async function fetchReportData() {
     } catch(e) { document.getElementById('reportLoader').style.display = "none"; alert("एरर: " + e.message); }
 }
 
-// 🟢 RENDER TABLES (PDF & Excel Buttons)
+// 🟢 RENDER TABLES
 function renderMultipleTables(reports, month, year) {
     let container = document.getElementById('reportTableContainer');
     
@@ -293,7 +293,7 @@ function renderMultipleTables(reports, month, year) {
         groupType = document.getElementById('reportGroupFilter') ? document.getElementById('reportGroupFilter').value : "Village";
     }
 
-    // 🟢 Excel आणि PDF दोन्ही डाऊनलोड बटणे ॲड केली आहेत (class="no-print" सह जेणेकरून PDF वर बटण छापले जाणार नाही)
+    // 🟢 PDF डाऊनलोड बटण ॲड केले आहे (no-print क्लाससह)
     let actionBtnsHtml = `<div class="no-print" style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
         <button onclick="downloadConsolidatedExcel()" style="flex:1; min-width:200px; background:#28a745; color:white; border:none; padding:12px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">📥 Excel (.xlsx) डाऊनलोड</button>
         <button id="btnPdfDownload" onclick="downloadConsolidatedPDF()" style="flex:1; min-width:200px; background:#dc3545; color:white; border:none; padding:12px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">📥 PDF (.pdf) डाऊनलोड</button>
@@ -366,7 +366,7 @@ function renderMultipleTables(reports, month, year) {
                 let r1Html = "", r2Html = "";
 
                 if (groupType === "SubCenterConsolidated") {
-                    r1Html = `<tr><th class="sticky-header-col" style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:0; z-index:2;">अ.क्र.</th><th class="sticky-header-col" style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:45px; z-index:2;">तपशील / प्रश्न</th>`;
+                    r1Html = `<tr><th style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:0; z-index:2;">अ.क्र.</th><th style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:45px; z-index:2;">तपशील / प्रश्न</th>`;
                     gRows.forEach((row) => {
                         let vName = row[subCenterIdx] || "-";
                         if (isProgressive) { r1Html += `<th style="background:#ffe082; color:#000; border:1px solid #ddd; text-align:center;">${vName}/मासिक</th><th style="background:#ffe082; color:#000; border:1px solid #ddd; text-align:center;">${vName}/प्रगत</th>`; } 
@@ -375,7 +375,7 @@ function renderMultipleTables(reports, month, year) {
                     if (isProgressive) { r1Html += `<th style="background:#81c784; color:#000; border:1px solid #ddd; text-align:center;">एकूण/मासिक</th><th style="background:#81c784; color:#000; border:1px solid #ddd; text-align:center;">एकूण/प्रगत</th></tr>`; } 
                     else { r1Html += `<th style="background:#81c784; color:#000; border:1px solid #ddd; text-align:center;">एकूण</th></tr>`; }
                 } else {
-                    r1Html = `<tr><th ${isProgressive ? 'rowspan="2"' : ''} class="sticky-header-col" style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:0; z-index:2;">अ.क्र.</th><th ${isProgressive ? 'rowspan="2"' : ''} class="sticky-header-col" style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:45px; z-index:2;">तपशील / प्रश्न</th>`;
+                    r1Html = `<tr><th ${isProgressive ? 'rowspan="2"' : ''} style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:0; z-index:2;">अ.क्र.</th><th ${isProgressive ? 'rowspan="2"' : ''} style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:45px; z-index:2;">तपशील / प्रश्न</th>`;
                     r2Html = isProgressive ? `<tr>` : "";
                     gRows.forEach((row) => {
                         let vName = groupType === "SubCenter" ? row[subCenterIdx] : (row[villageIdx] || "-");
@@ -422,7 +422,7 @@ function renderMultipleTables(reports, month, year) {
     container.innerHTML = html;
 }
 
-// 🟢 DOWNLOAD PDF (Auto Portrait/Landscape)
+// 🟢 DOWNLOAD COPYABLE PDF (Auto Portrait/Landscape)
 function downloadConsolidatedPDF() {
     if(currentReports.length === 0) return;
 
@@ -450,42 +450,14 @@ function downloadConsolidatedPDF() {
     let periodText = (finalMonth === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${finalMonth} ${year}`;
     if((user.role === 'Admin' || user.role === 'VIEWER' || user.role === 'MANAGER') && filterSubCenter !== 'सर्व') periodText += ` (${filterSubCenter})`;
 
-    let fileName = `अहवाल_${groupType}_${periodText.replace(/ /g, "_")}.pdf`;
+    let fileName = `अहवाल_${groupType}_${periodText.replace(/ /g, "_")}`;
 
-    // ओरिजनल टेबल कंटेनर घेणे
+    // PDF साठी रिपोर्टचा मूळ HTML घेणे
     let element = document.getElementById('reportTableContainer');
-    
-    // PDF काढण्यासाठी एक तात्पुरता डमी (Clone) कंटेनर बनवणे
-    let printDiv = document.createElement('div');
-    printDiv.style.background = "#fff";
-    printDiv.style.padding = "10px";
-    
-    // PDF साठी आकर्षक टायटल (Header)
-    let titleHtml = `<h2 style="text-align:center; color:#00705a; border-bottom:2px solid #ccc; padding-bottom:10px;">${currentReports[0].formName} अहवाल - ${periodText}</h2>`;
-    printDiv.innerHTML = titleHtml;
-    
-    let clonedElement = element.cloneNode(true);
-    printDiv.appendChild(clonedElement);
+    let printContent = element.innerHTML;
+    let titleHtml = `<h2 style="text-align:center; color:#00705a; border-bottom:2px solid #ccc; padding-bottom:10px; margin-top:0;">${currentReports[0].formName} अहवाल - ${periodText}</h2>`;
 
-    // PDF मध्ये बटणे दिसू नयेत म्हणून "no-print" क्लास वाले घटक काढणे
-    let noPrintElements = printDiv.querySelectorAll('.no-print');
-    noPrintElements.forEach(el => el.remove());
-
-    // PDF बनवताना तक्ते कापले जाऊ नयेत म्हणून CSS स्टाईल्स रिसेट करणे
-    let tables = printDiv.querySelectorAll('.table-responsive');
-    tables.forEach(t => {
-        t.style.maxHeight = 'none';
-        t.style.overflow = 'visible';
-        t.style.border = 'none';
-    });
-
-    // चिकटणारे कॉलम्स (Sticky Columns) PDF मध्ये खराब दिसतात, म्हणून ते नॉर्मल करणे
-    let stickyElements = printDiv.querySelectorAll('.sticky-col, .sticky-header-col');
-    stickyElements.forEach(el => {
-        el.style.position = 'static';
-    });
-
-    // 🟢 Portrait की Landscape ठरवणे (कॉलम्सच्या संख्येनुसार)
+    // 🟢 Portrait / Landscape ठरवणे (कॉलम्सच्या संख्येनुसार)
     let isLandscape = false;
     let originalTable = element.querySelector('.report-table');
     if (originalTable) {
@@ -502,34 +474,66 @@ function downloadConsolidatedPDF() {
         }
     }
 
-    // 🟢 html2pdf ची सेटिंग्ज
-    let canvasWidth = originalTable ? Math.max(originalTable.scrollWidth + 50, 1000) : 1000;
-    var opt = {
-        margin:       0.3,
-        filename:     fileName,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, windowWidth: canvasWidth },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: isLandscape ? 'landscape' : 'portrait' }
-    };
+    // CSS पेज साईझ (Auto Landscape/Portrait)
+    let pageCss = isLandscape ? "@page { size: A4 landscape; margin: 10mm; }" : "@page { size: A4 portrait; margin: 10mm; }";
 
+    let oldFrame = document.getElementById('pdfPrintFrame'); 
+    if (oldFrame) { oldFrame.remove(); }
+    
+    const iframe = document.createElement('iframe'); 
+    iframe.id = 'pdfPrintFrame'; 
+    iframe.style.position = 'fixed'; 
+    iframe.style.right = '0'; 
+    iframe.style.bottom = '0'; 
+    iframe.style.width = '0px'; 
+    iframe.style.height = '0px'; 
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe); 
+    
+    let doc = iframe.contentWindow.document; 
+    doc.open();
+    doc.write(`
+        <html>
+        <head>
+            <title>${fileName}</title>
+            <style>
+                ${pageCss}
+                body { font-family: 'Segoe UI', Arial, sans-serif; padding: 10px; color: #000; background: #fff; } 
+                h2 { text-align: center; color: #00705a; border-bottom: 2px solid #ccc; padding-bottom: 10px; margin-bottom: 20px; } 
+                h3 { color: #00705a; }
+                .table-responsive { width: 100%; overflow: visible !important; max-height: none !important; margin-bottom: 20px; }
+                .report-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 11px; page-break-inside: auto; } 
+                .report-table tr { page-break-inside: avoid; page-break-after: auto; }
+                .report-table th, .report-table td { border: 1px solid #000; padding: 6px; text-align: center; word-wrap: break-word; } 
+                .report-table th { background-color: #f2f2f2 !important; font-weight: bold; color: #000 !important; } 
+                .no-print { display: none !important; }
+                .sticky-col, .sticky-header-col { position: static !important; background: transparent !important; }
+                @media print { 
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
+                }
+            </style>
+        </head>
+        <body>
+            ${titleHtml}
+            ${printContent}
+        </body>
+        </html>
+    `);
+    doc.close(); 
+    
     // युजरला प्रोग्रेस दाखवणे
     let btn = document.getElementById('btnPdfDownload');
     let oldText = btn.innerText;
-    btn.innerText = "⏳ PDF तयार होत आहे...";
-    btn.style.opacity = "0.7";
+    btn.innerText = "⏳ PDF उघडत आहे...";
     btn.disabled = true;
 
-    // PDF तयार करण्याची प्रोसेस
-    html2pdf().set(opt).from(printDiv).save().then(() => {
+    // प्रिंट डायलॉग उघडणे
+    setTimeout(() => { 
+        iframe.contentWindow.focus(); 
+        iframe.contentWindow.print(); 
         btn.innerText = oldText;
-        btn.style.opacity = "1";
         btn.disabled = false;
-    }).catch(err => {
-        alert("PDF डाउनलोड करताना त्रुटी आली. कृपया पुन्हा प्रयत्न करा.");
-        btn.innerText = oldText;
-        btn.style.opacity = "1";
-        btn.disabled = false;
-    });
+    }, 1000);
 }
 
 // 🟢 DOWNLOAD EXCEL
