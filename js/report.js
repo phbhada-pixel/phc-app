@@ -638,12 +638,12 @@ function downloadConsolidatedPDF() {
 
     // 🟢 थेट PDF डाऊनलोड करण्यासाठी html2pdf
     var opt = {
-        margin:       0.3,
-        filename:     fileName,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: isLandscape ? 'landscape' : 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'] }
+        margin:       [0.5, 0.5, 0.5, 0.5], // मार्जिन थोडे वाढवा
+        filename:     fileName + '.pdf',
+        image:        { type: 'jpeg', quality: 1.0 }, // क्वालिटी वाढवा
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true }, // letterRendering true करा
+        jsPDF:        { unit: 'in', format: 'a4', orientation: isLandscape ? 'landscape' : 'portrait' }
+        // pagebreak: { mode: ['css', 'legacy'] } // हे तात्पुरते काढून पहा
     };
 
     html2pdf().set(opt).from(printDiv).save().then(() => {
