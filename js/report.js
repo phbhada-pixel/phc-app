@@ -1,6 +1,5 @@
-// 🟢 JS/REPORT.JS - पंधरवडा (Fortnightly) आणि उपकेंद्र फिल्टरसह पूर्ण कोड
+// 🟢 JS/REPORT.JS - DD-MM-YYYY Date Format, Fortnightly आणि उपकेंद्र फिल्टरसह
 
-// 🟢 नवीन: अहवाल फॉर्म निवडल्यावर पंधरवडा ड्रॉपडाऊन दाखवणे/लपवणे
 function toggleReportFortnight() {
     let fId = document.getElementById('reportFormSelect').value;
     let fnDiv = document.getElementById('reportFortnightDiv');
@@ -18,7 +17,7 @@ function toggleReportFortnight() {
     }
 }
 
-// 🟢 PENDING REPORT LOGIC (उपकेंद्र आणि पंधरवाडा फिल्टरसह)
+// 🟢 PENDING REPORT LOGIC
 function generatePendingReport() {
     const selMonth = document.getElementById('reportMonth').value;
     const selYear = document.getElementById('reportYear').value;
@@ -39,7 +38,6 @@ function generatePendingReport() {
         let isAllForm = allowedRoles.includes("ALL");
         groupedData[f.FormName] = [];
 
-        // 🟢 पंधरवाडी फॉर्म असल्यास महिना आणि पंधरवडा एकत्र करणे
         let targetMonth = selMonth;
         if(String(f.Frequency).trim().toUpperCase() === "FORTNIGHTLY") {
             let fn = document.getElementById('reportFortnight').value;
@@ -49,7 +47,6 @@ function generatePendingReport() {
         masterData.users.forEach(u => {
             let isAdmin = (user.role === "Admin" || user.role === "VIEWER" || user.role === "MANAGER");
             if (!isAdmin && String(u.mobile).trim() !== String(user.mobile).trim()) return;
-            
             if (isAdmin && filterSubCenter !== "सर्व" && String(u.subcenter).trim() !== filterSubCenter) return;
 
             if (isAllForm || allowedRoles.includes(u.role)) {
@@ -75,7 +72,6 @@ function generatePendingReport() {
         </div>
     `;
     
-    // टायटलमध्ये पंधरवड्याचे नाव दाखवणे
     let displayMonthTitle = selMonth;
     if(reportFormSelect !== "ALL" && reportFormSelect !== "") {
         let selectedFormObj = masterData.forms.find(x => x.FormID === reportFormSelect);
@@ -184,14 +180,13 @@ window.switchTab = function(tab) {
     if(tab === 'reports') { updateReportSubCenterDropdown(); }
 };
 
-// 🟢 REPORT FETCHING LOGIC 
+// 🟢 REPORT FETCHING LOGIC (DD-MM-YYYY Formatting सह)
 async function fetchReportData() {
     const formID = document.getElementById('reportFormSelect').value; 
     const selMonth = document.getElementById('reportMonth').value; 
     const selYear = document.getElementById('reportYear').value;
     if(!formID) { alert("कृपया अहवाल निवडा"); return; }
     
-    // 🟢 पंधरवाडी फॉर्म असल्यास महिना आणि पधंरवडा एकत्र करून पाठवणे
     let finalMonth = selMonth;
     if(formID !== "ALL") {
         let fObj = masterData.forms.find(x => x.FormID === formID);
@@ -213,18 +208,49 @@ async function fetchReportData() {
         const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"getReportData", payload}) });
         const textResponse = await r.text(); const d = JSON.parse(textResponse);
         document.getElementById('reportLoader').style.display = "none";
+        
         if(d.success && d.reports) {
             let finalReports = [];
             d.reports.forEach(rep => {
                 let headers = rep.data[0]; if(!headers) return;
+                
+                // 🟢 नवीन: सर्व तारखांचे कॉलम्स शोधणे (तारीख, दिनांक, Date इ.)
+                let dateIndices = [];
+                headers.forEach((h, idx) => {
+                    let hStr = String(h).toLowerCase();
+                    if(hStr.includes("तारीख") || hStr.includes("दिनांक") || hStr.includes("date")) {
+                        dateIndices.push(idx);
+                    }
+                });
+
                 let validData = [headers];
-                for(let i=1; i<rep.data.length; i++) { let isNil = rep.data[i].some(cell => String(cell).includes("निरंक (Nil Report)")); if(!isNil) validData.push(rep.data[i]); }
+                for(let i=1; i<rep.data.length; i++) { 
+                    let isNil = rep.data[i].some(cell => String(cell).includes("निरंक (Nil Report)")); 
+                    if(!isNil) {
+                        // 🟢 नवीन: तारखांना DD-MM-YYYY मध्ये बदलणे
+                        dateIndices.forEach(idx => {
+                            if(rep.data[i][idx]) {
+                                let dStr = String(rep.data[i][idx]);
+                                let dObj = new Date(dStr);
+                                if(!isNaN(dObj.getTime()) && dStr.length >= 8 && dStr.match(/[a-zA-Z\-/\\]/)) {
+                                    let dd = String(dObj.getDate()).padStart(2, '0');
+                                    let mm = String(dObj.getMonth() + 1).padStart(2, '0');
+                                    let yyyy = dObj.getFullYear();
+                                    rep.data[i][idx] = `${dd}-${mm}-${yyyy}`;
+                                }
+                            }
+                        });
+                        validData.push(rep.data[i]); 
+                    }
+                }
                 rep.data = validData;
+
                 const formObj = masterData.forms.find(x => x.FormName === rep.formName);
                 let formTypeStr = formObj ? String(formObj.FormType).trim() : "";
                 let isProgressive = formTypeStr.includes('ProgressiveStats'); let isVertical = formTypeStr.includes('Vertical'); let isList = formTypeStr.includes('List'); 
                 let monthIdx = headers.indexOf("महिना"); let yearIdx = headers.indexOf("वर्ष"); let villageIdx = headers.indexOf("गाव"); if(villageIdx === -1) villageIdx = headers.indexOf("Village"); 
                 let fData = []; let dataRows = [];
+
                 if (isProgressive && !isVertical && selMonth !== "सर्व" && selYear !== "सर्व") {
                     let flatFields = extractFieldsFromForm(formObj); let numericLabels = flatFields.filter(f => f.orig.type === 'number' || f.orig.type === 'sum').map(f => f.label);
                     let newHeaders = []; let numMap = {}; headers.forEach((h, i) => { if (numericLabels.includes(h)) { newHeaders.push(`${h} - मासिक`); newHeaders.push(`${h} - प्रगत`); numMap[i] = true; } else { newHeaders.push(h); } });
@@ -394,7 +420,7 @@ function renderMultipleTables(reports, month, year) {
     container.innerHTML = html;
 }
 
-// 🟢 DOWNLOAD EXCEL (पंधरवडा नावासह)
+// 🟢 DOWNLOAD EXCEL
 function downloadConsolidatedExcel() {
     if(currentReports.length === 0) return;
     
@@ -411,7 +437,6 @@ function downloadConsolidatedExcel() {
     let year = document.getElementById('reportYear').value;
     const formID = document.getElementById('reportFormSelect').value;
 
-    // 🟢 एक्सेलच्या नावासाठी आणि टायटलसाठी पंधरवडा जोडणे
     let finalMonth = month;
     if(formID !== "ALL") {
         let fObj = masterData.forms.find(x => x.FormID === formID);
@@ -458,7 +483,7 @@ function downloadConsolidatedExcel() {
         }
 
         let sheetData = []; let merges = []; let headerRowIndices = [];
-        sheetData.push([`${rep.formName} अहवाल (${periodText})`]); // टायटलमध्ये महिना+पंधरवडा
+        sheetData.push([`${rep.formName} अहवाल (${periodText})`]); 
         sheetData.push([]); 
 
         if (isVertical) {
@@ -559,6 +584,5 @@ function downloadConsolidatedExcel() {
         XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
     });
     
-    // एक्सेल फाईलच्या नावामध्ये पंधरवडा जोडणे
     XLSX.writeFile(wb, `मासिक_अहवाल_${groupType}_${periodText.replace(/ /g, "_")}.xlsx`);
 }
