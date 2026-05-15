@@ -1,4 +1,15 @@
-// 🟢 JS/REPORT.JS - Copyable PDF, Auto-Fit Layout & UTF-8 (Marathi) सह
+// 🟢 JS/REPORT.JS - 2 Decimal Places, Auto-Wrap PDF, Fortnightly & Subcenter Filter सह
+
+// 🟢 नवीन ग्लोबल फंक्शन: आकड्यांना जास्तीत जास्त २ दशांश स्थळांपर्यंत (Upto 2 Decimals) सेट करण्यासाठी
+function formatNumberDecimals(val) {
+    if (val === "" || val === null || val === undefined || val === "-" || String(val).trim() === "") return val;
+    let n = Number(val);
+    if (!isNaN(n)) {
+        // जर पूर्ण संख्या असेल तर तशीच ठेवा, अन्यथा २ दशांश स्थळांपर्यंत राउंड करा
+        return Number.isInteger(n) ? n : parseFloat(n.toFixed(2));
+    }
+    return val;
+}
 
 function toggleReportFortnight() {
     let fId = document.getElementById('reportFormSelect').value;
@@ -17,6 +28,7 @@ function toggleReportFortnight() {
     }
 }
 
+// 🟢 PENDING REPORT LOGIC
 function generatePendingReport() {
     const selMonth = document.getElementById('reportMonth').value;
     const selYear = document.getElementById('reportYear').value;
@@ -126,7 +138,6 @@ function copyPendingListText() {
     navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी यशस्वीरित्या कॉपी झाली!"); });
 }
 
-// 🟢 PENDING PDF DOWNLOAD (मराठी फॉन्टसह)
 function downloadPendingPDF() {
     let titleEl = document.querySelector('#pdfExportArea h2');
     let title = titleEl ? titleEl.innerText.replace(/ /g, "_") : "Pending_Report";
@@ -135,7 +146,7 @@ function downloadPendingPDF() {
     let oldFrame = document.getElementById('pdfPrintFrame'); if (oldFrame) { oldFrame.remove(); }
     const iframe = document.createElement('iframe'); iframe.id = 'pdfPrintFrame'; iframe.style.position = 'fixed'; iframe.style.right = '0'; iframe.style.bottom = '0'; iframe.style.width = '0px'; iframe.style.height = '0px'; iframe.style.border = 'none';
     document.body.appendChild(iframe); let doc = iframe.contentWindow.document; doc.open();
-    doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>@page { size: portrait; margin: 10mm; } body { font-family: 'Segoe UI', Arial, sans-serif; padding: 10px; color: #000; } h2 { text-align: center; color: #c0392b; border-bottom: 2px solid #ccc; padding-bottom: 10px; } .pdf-group-header { background: #f8f9fa; color: #c0392b; padding: 10px; font-weight: bold; font-size: 16px; margin-top: 20px; border-bottom: 1px solid #c0392b; } table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; table-layout: fixed; } th, td { border: 1px solid #000; padding: 8px; text-align: left; word-wrap: break-word; } th { background-color: #f2f2f2 !important; font-weight: bold; } td:first-child, th:first-child { text-align: center; width: 10%; } @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } th { background-color: #f2f2f2 !important; } }</style></head><body>${printContent}</body></html>`);
+    doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>@page { size: portrait; margin: 10mm; } body { font-family: 'Segoe UI', Arial, sans-serif; padding: 10px; color: #000; } h2 { text-align: center; color: #c0392b; border-bottom: 2px solid #ccc; padding-bottom: 10px; } .pdf-group-header { background: #f8f9fa; color: #c0392b; padding: 10px; font-weight: bold; font-size: 16px; margin-top: 20px; border-bottom: 1px solid #c0392b; } table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; table-layout: fixed; } th, td { border: 1px solid #000; padding: 8px; text-align: left; word-wrap: break-word; white-space: normal !important; overflow-wrap: break-word; } th { background-color: #f2f2f2 !important; font-weight: bold; } td:first-child, th:first-child { text-align: center; width: 10%; } @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } th { background-color: #f2f2f2 !important; } }</style></head><body>${printContent}</body></html>`);
     doc.close(); setTimeout(() => { iframe.contentWindow.focus(); iframe.contentWindow.print(); }, 800);
 }
 
@@ -146,7 +157,8 @@ function getTotalsRow(data, headers, showIndices) {
         if(colName.includes("मोबाईल") || colName.includes("क्रमांक") || colName === "तारीख" || colName === "महिना" || colName === "वर्ष" || colName === "उपकेंद्र" || colName === "गाव" || colName === "ग्रामपंचायत" || colName.includes("नाव") || colName.includes("स्तर")) { continue; }
         let isNum = false; let colSum = 0;
         for(let r=1; r<data.length; r++) { let val = String(data[r][c] || "").trim(); if(val !== "" && val !== "-") { if(!isNaN(val)) { isNum = true; colSum += parseFloat(val); } else { isNum = false; break; } } }
-        if(isNum) { isNumericCol[c] = true; totals[c] = colSum; }
+        // 🟢 दशांश स्थळे (Decimals) २ पर्यंत सेट करणे
+        if(isNum) { isNumericCol[c] = true; totals[c] = formatNumberDecimals(colSum); }
     }
     return { totals, isNumericCol };
 }
@@ -278,7 +290,7 @@ async function fetchReportData() {
     } catch(e) { document.getElementById('reportLoader').style.display = "none"; alert("एरर: " + e.message); }
 }
 
-// 🟢 RENDER TABLES
+// 🟢 RENDER TABLES (Decimal Places लागू केले आहेत)
 function renderMultipleTables(reports, month, year) {
     let container = document.getElementById('reportTableContainer');
     
@@ -318,9 +330,12 @@ function renderMultipleTables(reports, month, year) {
                     let val = row[idx];
                     if (typeof val === 'object' && val !== null) {
                         if (typeof aggregated[sc][idx] !== 'object') aggregated[sc][idx] = { M: 0, P: 0 };
-                        aggregated[sc][idx].M += parseFloat(val.M || 0); aggregated[sc][idx].P += parseFloat(val.P || 0);
+                        aggregated[sc][idx].M += parseFloat(val.M || 0);
+                        aggregated[sc][idx].P += parseFloat(val.P || 0);
                     } else {
-                        let n = parseFloat(val); if (!isNaN(n)) aggregated[sc][idx] = (parseFloat(aggregated[sc][idx]) || 0) + n; else aggregated[sc][idx] = val; 
+                        let n = parseFloat(val);
+                        if (!isNaN(n)) aggregated[sc][idx] = (parseFloat(aggregated[sc][idx]) || 0) + n;
+                        else aggregated[sc][idx] = val; 
                     }
                 });
             });
@@ -383,11 +398,16 @@ function renderMultipleTables(reports, month, year) {
                     gRows.forEach(row => {
                         let val = row[v.idxM]; 
                         let m = (typeof val === 'object' && val !== null) ? val.M : val;
-                        tbodyHtml += `<td>${m !== undefined && m !== "" ? m : "-"}</td>`; if(!isNaN(parseFloat(m))) rowTotM += parseFloat(m);
-                        if(isProgressive) { let p = (typeof val === 'object' && val !== null) ? val.P : val; tbodyHtml += `<td>${p !== undefined && p !== "" ? p : "-"}</td>`; if(!isNaN(parseFloat(p))) rowTotP += parseFloat(p); }
+                        // 🟢 दशांश स्थळे (Decimals) २ पर्यंत
+                        tbodyHtml += `<td>${m !== undefined && m !== "" ? formatNumberDecimals(m) : "-"}</td>`; if(!isNaN(parseFloat(m))) rowTotM += parseFloat(m);
+                        if(isProgressive) { 
+                            let p = (typeof val === 'object' && val !== null) ? val.P : val; 
+                            tbodyHtml += `<td>${p !== undefined && p !== "" ? formatNumberDecimals(p) : "-"}</td>`; 
+                            if(!isNaN(parseFloat(p))) rowTotP += parseFloat(p); 
+                        }
                     });
-                    tbodyHtml += `<td style="font-weight:bold; background:#e8f5e9;">${rowTotM}</td>`;
-                    if(isProgressive) tbodyHtml += `<td style="font-weight:bold; background:#e8f5e9;">${rowTotP}</td>`;
+                    tbodyHtml += `<td style="font-weight:bold; background:#e8f5e9;">${formatNumberDecimals(rowTotM)}</td>`;
+                    if(isProgressive) tbodyHtml += `<td style="font-weight:bold; background:#e8f5e9;">${formatNumberDecimals(rowTotP)}</td>`;
                     tbodyHtml += `</tr>`;
                 });
                 html += `<div class="table-responsive"><table class="report-table"><thead>${r1Html + r2Html}</thead><tbody>${tbodyHtml}</tbody></table></div>`;
@@ -398,7 +418,11 @@ function renderMultipleTables(reports, month, year) {
                 html += `</tr></thead><tbody>`;
                 gRows.forEach((row, i) => {
                     html += `<tr><td class="sticky-col" style="background:#fdfdfd; left:0;">${i+1}</td><td class="sticky-col" style="background:#fdfdfd; left:45px;">${groupType !== 'Village' ? row[subCenterIdx] : (row[villageIdx] || "-")}</td>`;
-                    showIndices.forEach(idx => html += `<td>${row[idx] || 0}</td>`);
+                    showIndices.forEach(idx => {
+                        let v = row[idx];
+                        let cellVal = (typeof v === 'object' && v !== null) ? `${formatNumberDecimals(v.M)} (M) / ${formatNumberDecimals(v.P)} (P)` : formatNumberDecimals(v);
+                        html += `<td>${cellVal !== undefined && cellVal !== "" ? cellVal : "-"}</td>`;
+                    });
                     html += `</tr>`;
                 });
                 let { totals, isNumericCol } = getTotalsRow([headers].concat(gRows), headers, showIndices);
@@ -412,7 +436,7 @@ function renderMultipleTables(reports, month, year) {
     container.innerHTML = html;
 }
 
-// 🟢 DOWNLOAD COPYABLE PDF (Auto Portrait/Landscape & Auto-Fit)
+// 🟢 DOWNLOAD COPYABLE PDF (Auto-Wrap & Format)
 function downloadConsolidatedPDF() {
     if(currentReports.length === 0) return;
 
@@ -446,7 +470,6 @@ function downloadConsolidatedPDF() {
     let printContent = element.innerHTML;
     let titleHtml = `<h2 style="text-align:center; color:#00705a; border-bottom:2px solid #ccc; padding-bottom:10px; margin-top:0;">${currentReports[0].formName} अहवाल - ${periodText}</h2>`;
 
-    // 🟢 Portrait / Landscape ठरवणे (कॉलम्सच्या संख्येनुसार)
     let isLandscape = false;
     let colCount = 0;
     let originalTable = element.querySelector('.report-table');
@@ -462,7 +485,6 @@ function downloadConsolidatedPDF() {
         }
     }
 
-    // 🟢 डायनॅमिक फॉन्ट साईज आणि झूम (टेबल कापले जाऊ नये म्हणून)
     let fontSize = "12px";
     let zoomLevel = 1;
     if (colCount > 15) { fontSize = "9px"; zoomLevel = 0.65; }
@@ -486,7 +508,7 @@ function downloadConsolidatedPDF() {
     
     let doc = iframe.contentWindow.document; 
     doc.open();
-    // 🟢 '<meta charset="UTF-8">' जोडल्यामुळे 'मे' वगैरे मराठी शब्द अचूक दिसतील!
+    // 🟢 Auto-Wrap CSS: word-break: break-word; white-space: normal;
     doc.write(`
         <!DOCTYPE html>
         <html>
@@ -500,7 +522,7 @@ function downloadConsolidatedPDF() {
                 .table-responsive { width: 100%; overflow: hidden !important; margin-bottom: 20px; }
                 .report-table { width: 100%; max-width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: ${fontSize}; table-layout: auto; word-wrap: break-word; } 
                 .report-table tr { page-break-inside: avoid; }
-                .report-table th, .report-table td { border: 1px solid #000; padding: 5px; text-align: center; word-wrap: break-word; } 
+                .report-table th, .report-table td { border: 1px solid #000; padding: 5px; text-align: center; word-break: break-word; overflow-wrap: break-word; white-space: normal !important; } 
                 .report-table th { background-color: #e9ecef !important; font-weight: bold; color: #000 !important; } 
                 .no-print { display: none !important; }
                 .sticky-col, .sticky-header-col { position: static !important; background: transparent !important; }
@@ -531,7 +553,7 @@ function downloadConsolidatedPDF() {
     }, 1000);
 }
 
-// 🟢 DOWNLOAD EXCEL
+// 🟢 DOWNLOAD EXCEL (Decimal Places सह)
 function downloadConsolidatedExcel() {
     if(currentReports.length === 0) return;
     
@@ -613,10 +635,10 @@ function downloadConsolidatedExcel() {
                     let rowData = [vIndex + 1, headers[idx]]; let rowTotalM = 0; let rowTotalP = 0;
                     dataRows.forEach(r => {
                         let val = r[idx]; let m = (typeof val === 'object' && val !== null) ? val.M : val;
-                        rowData.push(m !== undefined && m !== "" ? m : 0); if (!isNaN(parseFloat(m))) rowTotalM += parseFloat(m);
-                        if (isProgressive) { let p = (typeof val === 'object' && val !== null) ? val.P : val; rowData.push(p !== undefined && p !== "" ? p : 0); if (!isNaN(parseFloat(p))) rowTotalP += parseFloat(p); }
+                        rowData.push(m !== undefined && m !== "" ? formatNumberDecimals(m) : 0); if (!isNaN(parseFloat(m))) rowTotalM += parseFloat(m);
+                        if (isProgressive) { let p = (typeof val === 'object' && val !== null) ? val.P : val; rowData.push(p !== undefined && p !== "" ? formatNumberDecimals(p) : 0); if (!isNaN(parseFloat(p))) rowTotalP += parseFloat(p); }
                     });
-                    rowData.push(rowTotalM); if (isProgressive) rowData.push(rowTotalP);
+                    rowData.push(formatNumberDecimals(rowTotalM)); if (isProgressive) rowData.push(formatNumberDecimals(rowTotalP));
                     sheetData.push(rowData);
                 });
             } else {
@@ -643,10 +665,10 @@ function downloadConsolidatedExcel() {
                     let cc = 2; let rowTotalM = 0; let rowTotalP = 0;
                     dataRows.forEach(r => {
                         let val = r[idx]; let mObj = (typeof val === 'object' && val !== null) ? val.M : val;
-                        rowData[cc] = mObj !== undefined && mObj !== "" ? mObj : "-"; if(!isNaN(parseFloat(mObj))) rowTotalM += parseFloat(mObj); cc++;
-                        if(isProgressive) { let pObj = (typeof val === 'object' && val !== null) ? val.P : val; rowData[cc] = pObj !== undefined && pObj !== "" ? pObj : "-"; if(!isNaN(parseFloat(pObj))) rowTotalP += parseFloat(pObj); cc++; }
+                        rowData[cc] = mObj !== undefined && mObj !== "" ? formatNumberDecimals(mObj) : "-"; if(!isNaN(parseFloat(mObj))) rowTotalM += parseFloat(mObj); cc++;
+                        if(isProgressive) { let pObj = (typeof val === 'object' && val !== null) ? val.P : val; rowData[cc] = pObj !== undefined && pObj !== "" ? formatNumberDecimals(pObj) : "-"; if(!isNaN(parseFloat(pObj))) rowTotalP += parseFloat(pObj); cc++; }
                     });
-                    rowData[cc] = rowTotalM; cc++; if(isProgressive) rowData[cc] = rowTotalP;
+                    rowData[cc] = formatNumberDecimals(rowTotalM); cc++; if(isProgressive) rowData[cc] = formatNumberDecimals(rowTotalP);
                     sheetData.push(rowData); 
                 });
             }
@@ -663,7 +685,11 @@ function downloadConsolidatedExcel() {
                 let rowData = [rowIndex + 1];
                 if (isList) { if (subCenterIdx > -1) rowData.push(r[subCenterIdx] || "-"); if (villageIdx > -1) rowData.push(r[villageIdx] || "-"); } 
                 else { if (groupType !== "Village") rowData.push(r[subCenterIdx] || "-"); else rowData.push(r[villageIdx] || "-"); }
-                showIndices.forEach(colIdx => { let v = r[colIdx]; let valStr = (typeof v === 'object' && v !== null) ? `${v.M} (M) / ${v.P} (P)` : v; rowData.push(valStr !== undefined && valStr !== "" ? valStr : "-"); });
+                showIndices.forEach(colIdx => { 
+                    let v = r[colIdx]; 
+                    let valStr = (typeof v === 'object' && v !== null) ? `${formatNumberDecimals(v.M)} (M) / ${formatNumberDecimals(v.P)} (P)` : formatNumberDecimals(v); 
+                    rowData.push(valStr !== undefined && valStr !== "" ? valStr : "-"); 
+                });
                 sheetData.push(rowData);
             });
 
@@ -672,7 +698,7 @@ function downloadConsolidatedExcel() {
                 showIndices.forEach(idx => {
                     let colSumM = 0; let colSumP = 0; let isNum = false;
                     dataRows.forEach(r => { let v = r[idx]; if (typeof v === 'object' && v !== null) { isNum = true; colSumM += parseFloat(v.M || 0); colSumP += parseFloat(v.P || 0); } else { let n = parseFloat(v); if (!isNaN(n)) { isNum = true; colSumM += n; } } });
-                    if (isNum) { if (isProgressive) totalRow.push(`${colSumM} (M) / ${colSumP} (P)`); else totalRow.push(colSumM); } else { totalRow.push("-"); }
+                    if (isNum) { if (isProgressive) totalRow.push(`${formatNumberDecimals(colSumM)} (M) / ${formatNumberDecimals(colSumP)} (P)`); else totalRow.push(formatNumberDecimals(colSumM)); } else { totalRow.push("-"); }
                 });
                 sheetData.push(totalRow); headerRowIndices.push(sheetData.length - 1);
             }
