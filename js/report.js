@@ -1,4 +1,4 @@
-// 🟢 JS/REPORT.JS - DD-MM-YYYY Date Format, Fortnightly आणि उपकेंद्र फिल्टरसह
+// 🟢 JS/REPORT.JS - PDF Download (Auto Portrait/Landscape) आणि Excel सह
 
 function toggleReportFortnight() {
     let fId = document.getElementById('reportFormSelect').value;
@@ -26,7 +26,6 @@ function generatePendingReport() {
     if (selMonth === "सर्व" || selYear === "सर्व") { alert("विशिष्ट 'महिना' आणि 'वर्ष' निवडा!"); return; }
 
     let groupedData = {}; 
-    
     let filterSubCenter = "सर्व";
     if (document.getElementById('reportSubCenterFilter')) { filterSubCenter = document.getElementById('reportSubCenterFilter').value; }
 
@@ -180,7 +179,7 @@ window.switchTab = function(tab) {
     if(tab === 'reports') { updateReportSubCenterDropdown(); }
 };
 
-// 🟢 REPORT FETCHING LOGIC (DD-MM-YYYY Formatting सह)
+// 🟢 REPORT FETCHING LOGIC 
 async function fetchReportData() {
     const formID = document.getElementById('reportFormSelect').value; 
     const selMonth = document.getElementById('reportMonth').value; 
@@ -214,7 +213,6 @@ async function fetchReportData() {
             d.reports.forEach(rep => {
                 let headers = rep.data[0]; if(!headers) return;
                 
-                // 🟢 नवीन: सर्व तारखांचे कॉलम्स शोधणे (तारीख, दिनांक, Date इ.)
                 let dateIndices = [];
                 headers.forEach((h, idx) => {
                     let hStr = String(h).toLowerCase();
@@ -227,7 +225,6 @@ async function fetchReportData() {
                 for(let i=1; i<rep.data.length; i++) { 
                     let isNil = rep.data[i].some(cell => String(cell).includes("निरंक (Nil Report)")); 
                     if(!isNil) {
-                        // 🟢 नवीन: तारखांना DD-MM-YYYY मध्ये बदलणे
                         dateIndices.forEach(idx => {
                             if(rep.data[i][idx]) {
                                 let dStr = String(rep.data[i][idx]);
@@ -287,7 +284,7 @@ async function fetchReportData() {
     } catch(e) { document.getElementById('reportLoader').style.display = "none"; alert("एरर: " + e.message); }
 }
 
-// 🟢 RENDER TABLES
+// 🟢 RENDER TABLES (PDF & Excel Buttons)
 function renderMultipleTables(reports, month, year) {
     let container = document.getElementById('reportTableContainer');
     
@@ -296,8 +293,13 @@ function renderMultipleTables(reports, month, year) {
         groupType = document.getElementById('reportGroupFilter') ? document.getElementById('reportGroupFilter').value : "Village";
     }
 
-    let excelBtnHtml = `<button onclick="downloadConsolidatedExcel()" style="background:#28a745; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom:15px; width:100%;">📥 Excel (.xlsx) डाउनलोड करा</button>`;
-    let html = excelBtnHtml;
+    // 🟢 Excel आणि PDF दोन्ही डाऊनलोड बटणे ॲड केली आहेत (class="no-print" सह जेणेकरून PDF वर बटण छापले जाणार नाही)
+    let actionBtnsHtml = `<div class="no-print" style="display:flex; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+        <button onclick="downloadConsolidatedExcel()" style="flex:1; min-width:200px; background:#28a745; color:white; border:none; padding:12px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">📥 Excel (.xlsx) डाऊनलोड</button>
+        <button id="btnPdfDownload" onclick="downloadConsolidatedPDF()" style="flex:1; min-width:200px; background:#dc3545; color:white; border:none; padding:12px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">📥 PDF (.pdf) डाऊनलोड</button>
+    </div>`;
+    
+    let html = actionBtnsHtml;
     
     reports.forEach(rep => {
         let data = rep.data; let headers = data[0];
@@ -364,7 +366,7 @@ function renderMultipleTables(reports, month, year) {
                 let r1Html = "", r2Html = "";
 
                 if (groupType === "SubCenterConsolidated") {
-                    r1Html = `<tr><th style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:0; z-index:2;">अ.क्र.</th><th style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:45px; z-index:2;">तपशील / प्रश्न</th>`;
+                    r1Html = `<tr><th class="sticky-header-col" style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:0; z-index:2;">अ.क्र.</th><th class="sticky-header-col" style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:45px; z-index:2;">तपशील / प्रश्न</th>`;
                     gRows.forEach((row) => {
                         let vName = row[subCenterIdx] || "-";
                         if (isProgressive) { r1Html += `<th style="background:#ffe082; color:#000; border:1px solid #ddd; text-align:center;">${vName}/मासिक</th><th style="background:#ffe082; color:#000; border:1px solid #ddd; text-align:center;">${vName}/प्रगत</th>`; } 
@@ -373,7 +375,7 @@ function renderMultipleTables(reports, month, year) {
                     if (isProgressive) { r1Html += `<th style="background:#81c784; color:#000; border:1px solid #ddd; text-align:center;">एकूण/मासिक</th><th style="background:#81c784; color:#000; border:1px solid #ddd; text-align:center;">एकूण/प्रगत</th></tr>`; } 
                     else { r1Html += `<th style="background:#81c784; color:#000; border:1px solid #ddd; text-align:center;">एकूण</th></tr>`; }
                 } else {
-                    r1Html = `<tr><th ${isProgressive ? 'rowspan="2"' : ''} style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:0; z-index:2;">अ.क्र.</th><th ${isProgressive ? 'rowspan="2"' : ''} style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:45px; z-index:2;">तपशील / प्रश्न</th>`;
+                    r1Html = `<tr><th ${isProgressive ? 'rowspan="2"' : ''} class="sticky-header-col" style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:0; z-index:2;">अ.क्र.</th><th ${isProgressive ? 'rowspan="2"' : ''} class="sticky-header-col" style="background:#f4b400; color:#000; border:1px solid #ddd; text-align:center; position:sticky; left:45px; z-index:2;">तपशील / प्रश्न</th>`;
                     r2Html = isProgressive ? `<tr>` : "";
                     gRows.forEach((row) => {
                         let vName = groupType === "SubCenter" ? row[subCenterIdx] : (row[villageIdx] || "-");
@@ -418,6 +420,116 @@ function renderMultipleTables(reports, month, year) {
         html += `</div>`;
     });
     container.innerHTML = html;
+}
+
+// 🟢 DOWNLOAD PDF (Auto Portrait/Landscape)
+function downloadConsolidatedPDF() {
+    if(currentReports.length === 0) return;
+
+    let groupType = "Village";
+    let filterSubCenter = "सर्व";
+    
+    if (user.role === 'Admin' || user.role === 'MANAGER' || user.role === 'VIEWER') {
+        groupType = document.getElementById('reportGroupFilter') ? document.getElementById('reportGroupFilter').value : "Village";
+        filterSubCenter = document.getElementById('reportSubCenterFilter') ? document.getElementById('reportSubCenterFilter').value : "सर्व";
+    }
+
+    let month = document.getElementById('reportMonth').value; 
+    let year = document.getElementById('reportYear').value;
+    const formID = document.getElementById('reportFormSelect').value;
+
+    let finalMonth = month;
+    if(formID !== "ALL") {
+        let fObj = masterData.forms.find(x => x.FormID === formID);
+        if(fObj && String(fObj.Frequency).trim().toUpperCase() === "FORTNIGHTLY" && month !== "सर्व") {
+            let fn = document.getElementById('reportFortnight').value;
+            if(fn !== "सर्व") finalMonth = month + " (" + fn + ")";
+        }
+    }
+    
+    let periodText = (finalMonth === 'सर्व' && year === 'सर्व') ? 'सर्व महिने' : `${finalMonth} ${year}`;
+    if((user.role === 'Admin' || user.role === 'VIEWER' || user.role === 'MANAGER') && filterSubCenter !== 'सर्व') periodText += ` (${filterSubCenter})`;
+
+    let fileName = `अहवाल_${groupType}_${periodText.replace(/ /g, "_")}.pdf`;
+
+    // ओरिजनल टेबल कंटेनर घेणे
+    let element = document.getElementById('reportTableContainer');
+    
+    // PDF काढण्यासाठी एक तात्पुरता डमी (Clone) कंटेनर बनवणे
+    let printDiv = document.createElement('div');
+    printDiv.style.background = "#fff";
+    printDiv.style.padding = "10px";
+    
+    // PDF साठी आकर्षक टायटल (Header)
+    let titleHtml = `<h2 style="text-align:center; color:#00705a; border-bottom:2px solid #ccc; padding-bottom:10px;">${currentReports[0].formName} अहवाल - ${periodText}</h2>`;
+    printDiv.innerHTML = titleHtml;
+    
+    let clonedElement = element.cloneNode(true);
+    printDiv.appendChild(clonedElement);
+
+    // PDF मध्ये बटणे दिसू नयेत म्हणून "no-print" क्लास वाले घटक काढणे
+    let noPrintElements = printDiv.querySelectorAll('.no-print');
+    noPrintElements.forEach(el => el.remove());
+
+    // PDF बनवताना तक्ते कापले जाऊ नयेत म्हणून CSS स्टाईल्स रिसेट करणे
+    let tables = printDiv.querySelectorAll('.table-responsive');
+    tables.forEach(t => {
+        t.style.maxHeight = 'none';
+        t.style.overflow = 'visible';
+        t.style.border = 'none';
+    });
+
+    // चिकटणारे कॉलम्स (Sticky Columns) PDF मध्ये खराब दिसतात, म्हणून ते नॉर्मल करणे
+    let stickyElements = printDiv.querySelectorAll('.sticky-col, .sticky-header-col');
+    stickyElements.forEach(el => {
+        el.style.position = 'static';
+    });
+
+    // 🟢 Portrait की Landscape ठरवणे (कॉलम्सच्या संख्येनुसार)
+    let isLandscape = false;
+    let originalTable = element.querySelector('.report-table');
+    if (originalTable) {
+        let colCount = 0;
+        let firstRow = originalTable.querySelector('tr');
+        if (firstRow) {
+            Array.from(firstRow.children).forEach(th => {
+                colCount += parseInt(th.getAttribute('colspan') || 1);
+            });
+        }
+        // जर कॉलम्स 7 पेक्षा जास्त असतील किंवा टेबलची रुंदी 800px पेक्षा जास्त असेल, तर पेज आडवे (Landscape) करा
+        if (colCount > 7 || originalTable.scrollWidth > 800) {
+            isLandscape = true;
+        }
+    }
+
+    // 🟢 html2pdf ची सेटिंग्ज
+    let canvasWidth = originalTable ? Math.max(originalTable.scrollWidth + 50, 1000) : 1000;
+    var opt = {
+        margin:       0.3,
+        filename:     fileName,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, windowWidth: canvasWidth },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: isLandscape ? 'landscape' : 'portrait' }
+    };
+
+    // युजरला प्रोग्रेस दाखवणे
+    let btn = document.getElementById('btnPdfDownload');
+    let oldText = btn.innerText;
+    btn.innerText = "⏳ PDF तयार होत आहे...";
+    btn.style.opacity = "0.7";
+    btn.disabled = true;
+
+    // PDF तयार करण्याची प्रोसेस
+    html2pdf().set(opt).from(printDiv).save().then(() => {
+        btn.innerText = oldText;
+        btn.style.opacity = "1";
+        btn.disabled = false;
+    }).catch(err => {
+        alert("PDF डाउनलोड करताना त्रुटी आली. कृपया पुन्हा प्रयत्न करा.");
+        btn.innerText = oldText;
+        btn.style.opacity = "1";
+        btn.disabled = false;
+    });
 }
 
 // 🟢 DOWNLOAD EXCEL
