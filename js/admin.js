@@ -1,4 +1,4 @@
-// 🟢 JS/ADMIN.JS - Field IDs, Frequency (पंधरवाडी/मासिक) आणि Saving Logic सह
+// 🟢 JS/ADMIN.JS - Field IDs, Frequency (पंधरवाडी/मासिक), Date Field आणि Saving Logic सह
 
 function openNewFormBuilder() {
     document.getElementById('formBuilder').classList.remove('hidden');
@@ -151,7 +151,7 @@ function addFieldToUI(fieldData = null) {
                 <option value="text" ${selType === 'text' ? 'selected' : ''}>Text (अक्षरे)</option>
                 <option value="mobile" ${selType === 'mobile' ? 'selected' : ''}>Mobile (१० अंकी नंबर)</option>
                 <option value="dropdown" ${selType === 'dropdown' ? 'selected' : ''}>Dropdown (यादी)</option>
-                <option value="group" ${selType === 'group' ? 'selected' : ''}>Group (सब-प्रश्न गट)</option>
+                <option value="date" ${selType === 'date' ? 'selected' : ''}>तारीख (Date)</option> <option value="group" ${selType === 'group' ? 'selected' : ''}>Group (सब-प्रश्न गट)</option>
             </select>
             <label style="font-size:14px; color:#d35400; font-weight:bold; margin-top:5px;">
                 <input type="checkbox" class="f-req" ${isReqChecked} style="transform: scale(1.2); margin-right:8px;"> हा प्रश्न भरणे सक्तीचे (Required) आहे
@@ -208,7 +208,7 @@ function addSubFieldToUI(parentDiv, sfData = null) {
                 <option value="text" ${selType === 'text' ? 'selected' : ''}>Text (अक्षरे)</option>
                 <option value="mobile" ${selType === 'mobile' ? 'selected' : ''}>Mobile (१० अंकी नंबर)</option>
                 <option value="dropdown" ${selType === 'dropdown' ? 'selected' : ''}>Dropdown (यादी)</option>
-                <option value="group" ${selType === 'group' ? 'selected' : ''}>Group (3rd Level)</option>
+                <option value="date" ${selType === 'date' ? 'selected' : ''}>तारीख (Date)</option> <option value="group" ${selType === 'group' ? 'selected' : ''}>Group (3rd Level)</option>
             </select>
             <label style="font-size:13px; color:#d35400; margin-top:3px;"><input type="checkbox" class="sf-req" ${isReqChecked}> आवश्यक आहे (*)</label>
         </div>
@@ -261,7 +261,7 @@ function addSubSubFieldToUI(parentDiv, ssfData = null) {
                 <option value="text" ${selType === 'text' ? 'selected' : ''}>Text (अक्षरे)</option>
                 <option value="mobile" ${selType === 'mobile' ? 'selected' : ''}>Mobile (१० अंकी नंबर)</option>
                 <option value="dropdown" ${selType === 'dropdown' ? 'selected' : ''}>Dropdown (यादी)</option>
-            </select>
+                <option value="date" ${selType === 'date' ? 'selected' : ''}>तारीख (Date)</option> </select>
             <label style="font-size:12px; color:#d35400;"><input type="checkbox" class="ssf-req" ${isReqChecked}> सक्तीचे (*)</label>
 
             <button type="button" onclick="toggleAdv(this)" style="margin-top:2px; background:none; border:none; color:#0056b3; font-weight:bold; cursor:pointer; font-size:11px; text-align:left; padding:0;">⚙️ प्रगत सेटिंग्ज</button>
@@ -385,7 +385,7 @@ async function saveFullForm() {
         FormName: fName,
         FormType: finalType,
         AllowedRoles: allowedRoles,
-        Frequency: frequency, // 👈 इथे
+        Frequency: frequency,
         StructureJSON: JSON.stringify(structure),
         IsActive: isActive,
         isActive: isActive, 
