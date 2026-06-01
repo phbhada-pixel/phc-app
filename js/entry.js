@@ -86,7 +86,6 @@ function updateFormDropdowns() {
     if(repForm && repForm.querySelector(`option[value="${currentRep}"]`)) repForm.value = currentRep;
 }
 
-// 🟢 पधंरवडा ड्रॉपडाऊन दाखवण्यासाठी अपडेट
 function updateVillageDropdown() {
     const vSel = document.getElementById('selVillage');
     const fId = document.getElementById('selForm').value;
@@ -94,26 +93,25 @@ function updateVillageDropdown() {
     const year = document.getElementById('selYear').value;
 
     vSel.innerHTML = '<option value="">-- गाव निवडा --</option>';
+    const fnDiv = document.getElementById('fortnightDiv');
     
-    // 🟢 फॉर्म निवडला नसेल तर पधंरवडा लपवा
     if(!user || !fId) { 
         document.getElementById('dynamicFormArea').innerHTML = ""; 
-        if(document.getElementById('fortnightDiv')) document.getElementById('fortnightDiv').style.display = 'none';
+        if(fnDiv) fnDiv.style.display = 'none';
         return; 
     }
 
-    // 🟢 पंधरवाडी फॉर्म असेल तर ड्रॉपडाऊन दाखवा आणि महिना सेट करा
     if(fId !== "ALL_STATS") {
         let f = masterData.forms.find(x => x.FormID === fId);
         if(f && String(f.Frequency).toUpperCase() === "FORTNIGHTLY") {
-            if(document.getElementById('fortnightDiv')) document.getElementById('fortnightDiv').style.display = 'block'; // 👈 हे महत्त्वाचे आहे
+            if(fnDiv) fnDiv.style.display = 'block'; 
             let fn = document.getElementById('selFortnight').value;
             month = month + " (" + fn + ")";
         } else {
-            if(document.getElementById('fortnightDiv')) document.getElementById('fortnightDiv').style.display = 'none';
+            if(fnDiv) fnDiv.style.display = 'none';
         }
     } else {
-        if(document.getElementById('fortnightDiv')) document.getElementById('fortnightDiv').style.display = 'none';
+        if(fnDiv) fnDiv.style.display = 'none';
     }
 
     let addedVillagesCount = 0;
@@ -168,12 +166,16 @@ function loadDynamicFields() {
     const nilArea = document.getElementById('nilButtonContainer'); 
     let month = document.getElementById('selMonth').value;
     const year = document.getElementById('selYear').value;
+    const fnDiv = document.getElementById('fortnightDiv');
 
     area.innerHTML = "";
     if(nilArea) nilArea.innerHTML = ""; 
     document.getElementById('mainSaveBtn').style.display = 'none';
 
-    if(!fId) return;
+    if(!fId) {
+        if(fnDiv) fnDiv.style.display = 'none';
+        return;
+    }
 
     let availableVillages = Array.from(document.getElementById('selVillage').options).map(o => o.value).filter(v => v !== "" && v !== "ALL_VILLAGES");
     
@@ -182,6 +184,7 @@ function loadDynamicFields() {
         if (selectedForm && String(selectedForm.FormType).trim() !== 'List') {
             area.innerHTML = "<p style='color:green; text-align:center; font-weight:bold; font-size:18px; padding:20px; border:2px solid green; border-radius:8px; background:#e8f5e9;'>🎉 उत्कृष्ट! या महिन्यासाठी या अहवालाची सर्व गावे भरून पूर्ण झाली आहेत.</p>";
             document.getElementById('mainSaveBtn').style.display = 'none'; 
+            if(fnDiv) fnDiv.style.display = 'none';
             return;
         }
     }
@@ -189,10 +192,15 @@ function loadDynamicFields() {
     const selectedForm = masterData.forms.find(x => x.FormID === fId);
     
     let freq = selectedForm ? String(selectedForm.Frequency || "Monthly").trim().toUpperCase() : "";
-    if(freq === "FORTNIGHTLY" && document.getElementById('fortnightDiv')) {
+    
+    // 🟢 पधंरवडा ड्रॉपडाऊन दाखवण्यासाठी दुरुस्ती
+    if(freq === "FORTNIGHTLY") {
+        if(fnDiv) fnDiv.style.display = "block"; // 👈 हे परत टाकले आहे!
         let fn = document.getElementById('selFortnight').value;
         month = month + " (" + fn + ")"; 
-    } 
+    } else {
+        if(fnDiv) fnDiv.style.display = "none";
+    }
 
     if(selectedForm && String(selectedForm.FormType).trim() === 'List' && nilArea) {
         let remainingVillages = [];
@@ -906,7 +914,7 @@ async function submitNilReport(fId) {
             statusText.style.color = "green"; statusText.innerText = "✅ उर्वरित गावांचा निरंक अहवाल यशस्वीरित्या सेव्ह झाला!";
             setTimeout(() => { statusText.innerText = ""; }, 4000);
 
-            document.getElementById('netStatus').innerText = "डेटा रिफ्रेश होत आहे...";
+            document.getElementById('netStatus').innerText = "डेटा रिफ्रेश होत বাঙালি...";
             await fetchData();
             document.getElementById('netStatus').innerText = "Online";
 
