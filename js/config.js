@@ -16,30 +16,31 @@ window.onload = function() {
     document.getElementById('initialLoader').style.display = 'none'; 
     document.getElementById('mainApp').classList.remove('hidden'); 
     
-    const cachedData = localStorage.getItem("phc_master_data");
-    if (cachedData) {
-        try { masterData = JSON.parse(cachedData); } catch(e){}
-    }
+    // 🟢 १. जुना Cache कायमचा काढून टाकण्यासाठी (Real-Time Data साठी)
+    localStorage.removeItem("phc_master_data");
+    localStorage.removeItem("masterData");
 
     const savedUser = localStorage.getItem("phc_user_session");
     if(savedUser) { 
         user = JSON.parse(savedUser); 
-        showAppAfterLogin(); 
         
-        document.getElementById('netStatus').innerText = "डेटा अपडेट होत आहे...";
+        document.getElementById('netStatus').innerText = "रिअल-टाइम डेटा लोड होत आहे...";
         document.getElementById('netStatus').style.backgroundColor = "#fff3cd";
         document.getElementById('netStatus').style.color = "#856404";
         
+        // 🟢 २. आधी सर्व्हरवरून थेट नवीन डेटा घ्या, मगच ॲप (Dropdowns) चालू करा
         fetchData().then(() => {
             document.getElementById('netStatus').innerText = "Online";
             document.getElementById('netStatus').style.backgroundColor = "#d4edda";
             document.getElementById('netStatus').style.color = "#155724";
+            showAppAfterLogin(); // नवीन डेटा आल्यावरच UI दिसेल
         });
     } else {
         document.getElementById('loginBox').classList.remove('hidden');
     }
 };
 
+// 🟢 रिअल-टाइम डेटाबेस कॉलिंग फंक्शन
 async function fetchData() {
     try {
         const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"getInitialData"}) });
@@ -48,11 +49,17 @@ async function fetchData() {
         const d = JSON.parse(textResponse);
         if(d.success) {
             masterData = d;
-            localStorage.setItem("phc_master_data", JSON.stringify(d)); 
-            updateFormDropdowns();
-            if(typeof renderFormsListForEdit === "function") renderFormsListForEdit();
+            // ❌ localStorage.setItem काढून टाकले आहे जेणेकरून डेटा नेहमी थेट सर्व्हरवरून येईल
+            
+            if (typeof updateFormDropdowns === "function") updateFormDropdowns();
+            if (typeof updateVillageDropdown === "function") updateVillageDropdown();
+            if (typeof updateEditVillageDropdown === "function") updateEditVillageDropdown();
+            if (typeof renderFormsListForEdit === "function") renderFormsListForEdit();
         }
-    } catch(e) { console.error("Fetch failed", e); }
+    } catch(e) { 
+        console.error("Fetch failed", e); 
+        alert("डेटा लोड करताना इंटरनेट एरर आला.");
+    }
 }
 
 async function handleLogin() {
@@ -68,9 +75,13 @@ async function handleLogin() {
         if(d.success) {
             user = d.user; user.mobile = m;
             localStorage.setItem("phc_user_session", JSON.stringify(user));
+            
+            document.getElementById('netStatus').innerText = "डेटा लोड होत आहे...";
+            await fetchData(); // 🟢 लॉगिन झाल्यावर लगेच नवीन डेटा आणा
+            
             showAppAfterLogin();
+            document.getElementById('netStatus').innerText = "Online";
         } else { alert(d.message); }
-        document.getElementById('netStatus').innerText = "Online";
     } catch(e) { alert("लॉगिन अयशस्वी. कृपया इंटरनेट कनेक्शन तपासा."); document.getElementById('netStatus').innerText = "Offline"; }
 }
 
