@@ -304,11 +304,29 @@ function getTotalsRow(data, headers, showIndices) {
     return { totals, isNumericCol };
 }
 
+// 🟢 FIX: प्रगतसाठी अचूक महिने ओळखणारे फंक्शन
 function getProgressiveTargetMonthsAndYears(selM, selY) {
     const months = ["जानेवारी", "फेब्रुवारी", "मार्च", "एप्रिल", "मे", "जून", "जुलै", "ऑगस्ट", "सप्टेंबर", "ऑक्टोबर", "नोव्हेंबर", "डिसेंबर"];
-    const fyStartMonthIdx = 3; let selectedMonthIdx = months.indexOf(selM); let sYear = parseInt(selY); let result = [];
-    if (selectedMonthIdx >= fyStartMonthIdx) { for(let i = fyStartMonthIdx; i <= selectedMonthIdx; i++) { result.push({m: months[i], y: String(sYear)}); } } 
-    else { for(let i = fyStartMonthIdx; i <= 11; i++) { result.push({m: months[i], y: String(sYear - 1)}); } for(let i = 0; i <= selectedMonthIdx; i++) { result.push({m: months[i], y: String(sYear)}); } }
+    let cleanSelM = String(selM).split('(')[0].trim(); // 'मे (१ ते १५)' असेल तर 'मे' घेईल
+    const fyStartMonthIdx = 3; // आर्थिक वर्ष 'एप्रिल' पासून सुरू
+    let selectedMonthIdx = months.indexOf(cleanSelM); 
+    let sYear = parseInt(selY); 
+    let result = [];
+    
+    if (selectedMonthIdx === -1) return result;
+    
+    if (selectedMonthIdx >= fyStartMonthIdx) {
+        for(let i = fyStartMonthIdx; i <= selectedMonthIdx; i++) {
+            result.push({m: months[i], y: String(sYear)});
+        }
+    } else {
+        for(let i = fyStartMonthIdx; i <= 11; i++) {
+            result.push({m: months[i], y: String(sYear - 1)});
+        }
+        for(let i = 0; i <= selectedMonthIdx; i++) {
+            result.push({m: months[i], y: String(sYear)});
+        }
+    }
     return result;
 }
 
@@ -333,7 +351,7 @@ window.switchTab = function(tab) {
     }
 };
 
-// 🟢 REPORT FETCHING LOGIC (Progressive Bug Fixed)
+// 🟢 REPORT FETCHING LOGIC (प्रगत डेटाची अचूक बेरीज)
 async function fetchReportData() {
     let selectedIDs = getSelectedReportIDs();
     if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
@@ -369,7 +387,7 @@ async function fetchReportData() {
     try {
         let backendFormID = selectedIDs.length === 1 && selectedIDs[0] !== "ALL" ? selectedIDs[0] : "ALL";
         
-        // 🟢 FIX: प्रगत अहवालासाठी डेटाबेसकडून 'सर्व' महिन्यांचा डेटा मागत आहोत
+        // 🟢 डेटाबेसकडून नेहमी 'सर्व' महिन्यांचा डेटा घ्या, जेणेकरून प्रगतची बेरीज अचूक करता येईल
         const payload = { formID: backendFormID, role: user.role, subcenter: user.subcenter, mobileNo: user.mobile, filterSubCenter: filterSubCenter, month: "सर्व", year: "सर्व" };
         const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"getReportData", payload}) });
         const textResponse = await r.text(); const d = JSON.parse(textResponse);
@@ -418,8 +436,8 @@ async function fetchReportData() {
 
                 if (isProgressive && selMonth !== "सर्व" && selYear !== "सर्व") {
                     let flatFields = extractFieldsFromForm(formObj); let numericLabels = flatFields.filter(f => f.orig.type === 'number' || f.orig.type === 'sum').map(f => f.label);
-                    
                     let newHeaders = []; let numMap = {}; 
+                    
                     if (!isVertical) {
                         headers.forEach((h, i) => { if (numericLabels.includes(h)) { newHeaders.push(`${h} - मासिक`); newHeaders.push(`${h} - प्रगत`); numMap[i] = true; } else { newHeaders.push(h); } });
                         fData.push(newHeaders);
@@ -432,12 +450,35 @@ async function fetchReportData() {
                     let villageData = {};
                     
                     for(let i=1; i<rep.data.length; i++) {
-                        let row = rep.data[i]; let m = String(row[monthIdx]).trim(); let y = String(row[yearIdx]).trim(); let v = String(row[villageIdx] || "").trim();
+                        let row = rep.data[i]; 
+                        let m = String(row[monthIdx]).trim(); 
+                        let y = String(row[yearIdx]).trim(); 
+                        let v = String(row[villageIdx] || "").trim();
+                        let baseM = m.split('(')[0].trim();
                         
-                        // 🟢 FIX: पंधरवडा आणि प्रगत ची अचूक पडताळणी
-                        if(targetPeriods.some(p => p.y === y && (p.m === m || m.startsWith(p.m + " ")))) {
+                        // 🟢 FIX: मासिक आणि प्रगत ची अचूक पडताळणी
+                        let isTarget = false;
+                        let isTargetMonth = targetPeriods.some(p => p.m === baseM && p.y === y);
+                        
+                        if (isTargetMonth) {
+                            if (baseM !== selMonth || y !== selYear) {
+                                isTarget = true; // आधीचे सर्व महिने प्रगत मध्ये धरले जातील
+                            } else {
+                                // जर चालू महिना असेल, तर पंधरवडा तपासा
+                                if (finalMonth === selMonth) {
+                                    isTarget = true; 
+                                } else if (finalMonth.includes("१ ते १५")) {
+                                    if (m.includes("१६ ते अखेर")) isTarget = false; // पुढचा पंधरवडा वगळा
+                                    else isTarget = true;
+                                } else {
+                                    isTarget = true; // दुसरा पंधरवडा असेल तर दोन्ही पंधरवडे धरले जातील
+                                }
+                            }
+                        }
+
+                        if (isTarget) {
                             let sc = headers.indexOf("उपकेंद्र") > -1 ? String(row[headers.indexOf("उपकेंद्र")]).trim() : ""; 
-                            let gKey = `${sc}_${v}`; // मोबाईल नंबर काढला, जेणेकरून गावाचा डेटा एकत्र राहील
+                            let gKey = `${sc}_${v}`; 
                             
                             if(!villageData[gKey]) { 
                                 villageData[gKey] = { baseRow: Array(headers.length).fill("-"), progressive: {}, monthly: {} }; 
@@ -445,9 +486,13 @@ async function fetchReportData() {
                             }
                             
                             let isMonthlyMatch = false;
-                            if (finalMonth === selMonth) { isMonthlyMatch = (m.startsWith(selMonth) && y === selYear); } 
-                            else { isMonthlyMatch = (m === finalMonth && y === selYear); }
+                            if (finalMonth === selMonth) { 
+                                isMonthlyMatch = (baseM === selMonth && y === selYear); 
+                            } else { 
+                                isMonthlyMatch = (m === finalMonth && y === selYear); 
+                            }
 
+                            // जर हा रो (Row) मासिक अहवालाचा असेल, तरच त्याचे नाव/गाव अपडेट करा
                             if (isMonthlyMatch) { 
                                 headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); 
                             }
