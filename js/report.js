@@ -1,4 +1,4 @@
-// 🟢 JS/REPORT.JS - Print Window (Perfect Layout), Auto-Fit & Decimals
+// 🟢 JS/REPORT.JS - Progressive Total Fix (प्रगत बेरीज दुरुस्ती), Print PDF, Auto-Fit & Decimals
 
 function formatNumberDecimals(val) {
     if (val === "" || val === null || val === undefined || val === "-" || String(val).trim() === "") return val;
@@ -109,7 +109,6 @@ function toggleReportFortnight() {
     fnDiv.style.display = showFn ? "block" : "none";
 }
 
-// 🟢 PENDING REPORT LOGIC 
 function generatePendingReport() {
     const selMonth = document.getElementById('reportMonth').value;
     const selYear = document.getElementById('reportYear').value;
@@ -233,7 +232,6 @@ function copyPendingListText() {
     navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी यशस्वीरित्या कॉपी झाली!"); });
 }
 
-// 🟢 PRINT PENDING PDF
 function downloadPendingPDF() {
     let element = document.getElementById('pdfExportArea');
     if (!element) return;
@@ -335,7 +333,7 @@ window.switchTab = function(tab) {
     }
 };
 
-// 🟢 REPORT FETCHING LOGIC
+// 🟢 REPORT FETCHING LOGIC (Progressive Bug Fixed)
 async function fetchReportData() {
     let selectedIDs = getSelectedReportIDs();
     if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
@@ -364,11 +362,15 @@ async function fetchReportData() {
         filterSubCenter = document.getElementById('reportSubCenterFilter').value; 
     }
     
-    document.getElementById('reportLoader').style.display = "block"; document.getElementById('reportContentArea').classList.add('hidden'); document.getElementById('reportTableContainer').innerHTML = "";
+    document.getElementById('reportLoader').style.display = "block"; 
+    document.getElementById('reportContentArea').classList.add('hidden'); 
+    document.getElementById('reportTableContainer').innerHTML = "";
+    
     try {
         let backendFormID = selectedIDs.length === 1 && selectedIDs[0] !== "ALL" ? selectedIDs[0] : "ALL";
         
-        const payload = { formID: backendFormID, role: user.role, subcenter: user.subcenter, mobileNo: user.mobile, filterSubCenter: filterSubCenter, month: finalMonth, year: selYear };
+        // 🟢 FIX: प्रगत अहवालासाठी डेटाबेसकडून 'सर्व' महिन्यांचा डेटा मागत आहोत
+        const payload = { formID: backendFormID, role: user.role, subcenter: user.subcenter, mobileNo: user.mobile, filterSubCenter: filterSubCenter, month: "सर्व", year: "सर्व" };
         const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"getReportData", payload}) });
         const textResponse = await r.text(); const d = JSON.parse(textResponse);
         document.getElementById('reportLoader').style.display = "none";
@@ -379,9 +381,7 @@ async function fetchReportData() {
                 const formObj = masterData.forms.find(x => x.FormName === rep.formName);
                 if(!formObj) return;
 
-                if (!selectedIDs.includes("ALL") && !selectedIDs.includes(formObj.FormID)) {
-                    return; 
-                }
+                if (!selectedIDs.includes("ALL") && !selectedIDs.includes(formObj.FormID)) { return; }
 
                 let headers = rep.data[0]; if(!headers) return;
                 let dateIndices = [];
@@ -416,34 +416,86 @@ async function fetchReportData() {
                 let monthIdx = headers.indexOf("महिना"); let yearIdx = headers.indexOf("वर्ष"); let villageIdx = headers.indexOf("गाव"); if(villageIdx === -1) villageIdx = headers.indexOf("Village"); 
                 let fData = []; let dataRows = [];
 
-                if (isProgressive && !isVertical && selMonth !== "सर्व" && selYear !== "सर्व") {
+                if (isProgressive && selMonth !== "सर्व" && selYear !== "सर्व") {
                     let flatFields = extractFieldsFromForm(formObj); let numericLabels = flatFields.filter(f => f.orig.type === 'number' || f.orig.type === 'sum').map(f => f.label);
-                    let newHeaders = []; let numMap = {}; headers.forEach((h, i) => { if (numericLabels.includes(h)) { newHeaders.push(`${h} - मासिक`); newHeaders.push(`${h} - प्रगत`); numMap[i] = true; } else { newHeaders.push(h); } });
-                    fData.push(newHeaders); let targetPeriods = getProgressiveTargetMonthsAndYears(selMonth, selYear); let villageData = {};
+                    
+                    let newHeaders = []; let numMap = {}; 
+                    if (!isVertical) {
+                        headers.forEach((h, i) => { if (numericLabels.includes(h)) { newHeaders.push(`${h} - मासिक`); newHeaders.push(`${h} - प्रगत`); numMap[i] = true; } else { newHeaders.push(h); } });
+                        fData.push(newHeaders);
+                    } else {
+                        fData.push(headers);
+                        headers.forEach((h, i) => { if (numericLabels.includes(h)) numMap[i] = true; });
+                    }
+
+                    let targetPeriods = getProgressiveTargetMonthsAndYears(selMonth, selYear); 
+                    let villageData = {};
+                    
                     for(let i=1; i<rep.data.length; i++) {
                         let row = rep.data[i]; let m = String(row[monthIdx]).trim(); let y = String(row[yearIdx]).trim(); let v = String(row[villageIdx] || "").trim();
-                        if(targetPeriods.some(p => p.m === m && p.y === y)) {
-                            let sc = headers.indexOf("उपकेंद्र") > -1 ? String(row[headers.indexOf("उपकेंद्र")]).trim() : ""; let mob = headers.indexOf("मोबाईल क्र.") > -1 ? String(row[headers.indexOf("मोबाईल क्र.")]).trim() : ""; let gKey = `${sc}_${mob}_${v}`;
-                            if(!villageData[gKey]) { villageData[gKey] = { baseRow: Array(headers.length).fill("-"), progressive: {}, monthly: {} }; headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); }
-                            if (m === finalMonth && y === selYear) { headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); }
-                            headers.forEach((_, cIdx) => { if (numMap[cIdx]) { let val = parseFloat(row[cIdx]); if(!isNaN(val)) { villageData[gKey].progressive[cIdx] = (villageData[gKey].progressive[cIdx] || 0) + val; if (m === finalMonth && y === selYear) { villageData[gKey].monthly[cIdx] = val; } } } });
+                        
+                        // 🟢 FIX: पंधरवडा आणि प्रगत ची अचूक पडताळणी
+                        if(targetPeriods.some(p => p.y === y && (p.m === m || m.startsWith(p.m + " ")))) {
+                            let sc = headers.indexOf("उपकेंद्र") > -1 ? String(row[headers.indexOf("उपकेंद्र")]).trim() : ""; 
+                            let gKey = `${sc}_${v}`; // मोबाईल नंबर काढला, जेणेकरून गावाचा डेटा एकत्र राहील
+                            
+                            if(!villageData[gKey]) { 
+                                villageData[gKey] = { baseRow: Array(headers.length).fill("-"), progressive: {}, monthly: {} }; 
+                                headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); 
+                            }
+                            
+                            let isMonthlyMatch = false;
+                            if (finalMonth === selMonth) { isMonthlyMatch = (m.startsWith(selMonth) && y === selYear); } 
+                            else { isMonthlyMatch = (m === finalMonth && y === selYear); }
+
+                            if (isMonthlyMatch) { 
+                                headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); 
+                            }
+                            
+                            headers.forEach((_, cIdx) => { 
+                                if (numMap[cIdx]) { 
+                                    let val = parseFloat(row[cIdx]); 
+                                    if(!isNaN(val)) { 
+                                        villageData[gKey].progressive[cIdx] = (villageData[gKey].progressive[cIdx] || 0) + val; 
+                                        if (isMonthlyMatch) { 
+                                            villageData[gKey].monthly[cIdx] = (villageData[gKey].monthly[cIdx] || 0) + val; 
+                                        } 
+                                    } 
+                                } 
+                            });
                         }
                     }
-                    Object.keys(villageData).forEach(k => { let vData = villageData[k]; let newRow = []; headers.forEach((h, cIdx) => { if (numMap[cIdx]) { newRow.push(vData.monthly[cIdx] || 0); newRow.push(vData.progressive[cIdx] || 0); } else { newRow.push(vData.baseRow[cIdx] || "-"); } }); if(monthIdx > -1) newRow[monthIdx] = finalMonth; if(yearIdx > -1) newRow[yearIdx] = selYear; dataRows.push(newRow); });
-                } else if (isProgressive && isVertical && selMonth !== "सर्व" && selYear !== "सर्व") {
-                    fData.push(headers); let targetPeriods = getProgressiveTargetMonthsAndYears(selMonth, selYear); let villageData = {}; let flatFields = extractFieldsFromForm(formObj); let numericLabels = flatFields.filter(f => f.orig.type === 'number' || f.orig.type === 'sum').map(f => f.label); let numMap = {}; headers.forEach((h, i) => { if (numericLabels.includes(h)) numMap[i] = true; });
-                    for(let i=1; i<rep.data.length; i++) {
-                        let row = rep.data[i]; let m = String(row[monthIdx]).trim(); let y = String(row[yearIdx]).trim(); let v = String(row[villageIdx] || "").trim();
-                        if(targetPeriods.some(p => p.m === m && p.y === y)) {
-                            let sc = headers.indexOf("उपकेंद्र") > -1 ? String(row[headers.indexOf("उपकेंद्र")]).trim() : ""; let mob = headers.indexOf("मोबाईल क्र.") > -1 ? String(row[headers.indexOf("मोबाईल क्र.")]).trim() : ""; let gKey = `${sc}_${mob}_${v}`;
-                            if(!villageData[gKey]) { villageData[gKey] = { baseRow: Array(headers.length).fill("-"), progressive: {}, monthly: {} }; headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); }
-                            if (m === finalMonth && y === selYear) { headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); }
-                            headers.forEach((_, cIdx) => { if (numMap[cIdx]) { let val = parseFloat(row[cIdx]); if(!isNaN(val)) { villageData[gKey].progressive[cIdx] = (villageData[gKey].progressive[cIdx] || 0) + val; if (m === finalMonth && y === selYear) { villageData[gKey].monthly[cIdx] = val; } } } });
-                        }
-                    }
-                    Object.keys(villageData).forEach(k => { let vData = villageData[k]; let newRow = []; headers.forEach((h, cIdx) => { if (numMap[cIdx]) { newRow.push({ M: vData.monthly[cIdx] || 0, P: vData.progressive[cIdx] || 0 }); } else { newRow.push(vData.baseRow[cIdx] || "-"); } }); if(monthIdx > -1) newRow[monthIdx] = finalMonth; if(yearIdx > -1) newRow[yearIdx] = selYear; dataRows.push(newRow); });
+                    
+                    Object.keys(villageData).forEach(k => { 
+                        let vData = villageData[k]; let newRow = []; 
+                        headers.forEach((h, cIdx) => { 
+                            if (numMap[cIdx]) { 
+                                if (!isVertical) {
+                                    newRow.push(vData.monthly[cIdx] || 0); 
+                                    newRow.push(vData.progressive[cIdx] || 0); 
+                                } else {
+                                    newRow.push({ M: vData.monthly[cIdx] || 0, P: vData.progressive[cIdx] || 0 });
+                                }
+                            } else { 
+                                newRow.push(vData.baseRow[cIdx] || "-"); 
+                            } 
+                        }); 
+                        if(monthIdx > -1) newRow[monthIdx] = finalMonth; 
+                        if(yearIdx > -1) newRow[yearIdx] = selYear; 
+                        dataRows.push(newRow); 
+                    });
                 } else {
-                    fData.push(headers); for(let i=1; i<rep.data.length; i++) { let row = rep.data[i]; if((selMonth === "सर्व" || String(row[monthIdx]).trim() === finalMonth) && (selYear === "सर्व" || String(row[yearIdx]).trim() === selYear)) dataRows.push(row); }
+                    fData.push(headers); 
+                    for(let i=1; i<rep.data.length; i++) { 
+                        let row = rep.data[i]; 
+                        let m = String(row[monthIdx]).trim();
+                        let y = String(row[yearIdx]).trim();
+                        
+                        let monthMatch = (selMonth === "सर्व" || m === finalMonth || (finalMonth === selMonth && m.startsWith(selMonth)));
+                        let yearMatch = (selYear === "सर्व" || y === selYear);
+                        
+                        if(monthMatch && yearMatch) dataRows.push(row); 
+                    }
                 }
                 fData = fData.concat(dataRows); finalReports.push({ formName: rep.formName, data: fData, isList: isList }); 
             });
