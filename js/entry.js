@@ -1,4 +1,4 @@
-// 🟢 JS/ENTRY.JS - लोकसंख्या Lock आणि भरलेले गाव लपवणे (Hide Filled Villages) सह
+// 🟢 JS/ENTRY.JS - पधंरवडा (Fortnightly) ड्रॉपडाऊन फिक्स, लोकसंख्या Lock आणि Hide Filled Villages सह
 
 function isFormFilledForVillage(formObj, vName, month, year) {
     const serverHistory = masterData.filledStats || [];
@@ -86,6 +86,7 @@ function updateFormDropdowns() {
     if(repForm && repForm.querySelector(`option[value="${currentRep}"]`)) repForm.value = currentRep;
 }
 
+// 🟢 पधंरवडा ड्रॉपडाऊन दाखवण्यासाठी अपडेट
 function updateVillageDropdown() {
     const vSel = document.getElementById('selVillage');
     const fId = document.getElementById('selForm').value;
@@ -93,14 +94,26 @@ function updateVillageDropdown() {
     const year = document.getElementById('selYear').value;
 
     vSel.innerHTML = '<option value="">-- गाव निवडा --</option>';
-    if(!user || !fId) { document.getElementById('dynamicFormArea').innerHTML = ""; return; }
+    
+    // 🟢 फॉर्म निवडला नसेल तर पधंरवडा लपवा
+    if(!user || !fId) { 
+        document.getElementById('dynamicFormArea').innerHTML = ""; 
+        if(document.getElementById('fortnightDiv')) document.getElementById('fortnightDiv').style.display = 'none';
+        return; 
+    }
 
+    // 🟢 पंधरवाडी फॉर्म असेल तर ड्रॉपडाऊन दाखवा आणि महिना सेट करा
     if(fId !== "ALL_STATS") {
         let f = masterData.forms.find(x => x.FormID === fId);
         if(f && String(f.Frequency).toUpperCase() === "FORTNIGHTLY") {
+            if(document.getElementById('fortnightDiv')) document.getElementById('fortnightDiv').style.display = 'block'; // 👈 हे महत्त्वाचे आहे
             let fn = document.getElementById('selFortnight').value;
             month = month + " (" + fn + ")";
+        } else {
+            if(document.getElementById('fortnightDiv')) document.getElementById('fortnightDiv').style.display = 'none';
         }
+    } else {
+        if(document.getElementById('fortnightDiv')) document.getElementById('fortnightDiv').style.display = 'none';
     }
 
     let addedVillagesCount = 0;
@@ -128,7 +141,6 @@ function updateVillageDropdown() {
             return !isFullyFilled;
         } else {
             const selectedForm = masterData.forms.find(f => f.FormID === fId);
-            // 🟢 नवीन बदल: List प्रकार सोडून इतर सर्व अहवालांसाठी भरलेले गाव यादीतून गायब करणे
             if(selectedForm && String(selectedForm.FormType).trim() !== 'List') {
                 if (isFormFilledForVillage(selectedForm, v.VillageName, month, year)) {
                     return false; 
@@ -141,7 +153,6 @@ function updateVillageDropdown() {
         addedVillagesCount++;
     });
 
-    // 🟢 जर एक तरी गाव शिल्लक असेल, तरच Bulk Entry चा पर्याय दाखवा
     if(addedVillagesCount > 0) {
         vSel.innerHTML += '<option value="ALL_VILLAGES" style="font-weight:bold; color:#0056b3;">🏢 सर्व गावे एकत्रित भरा (Bulk Entry)</option>';
         vSel.innerHTML += htmlOptions;
@@ -162,12 +173,8 @@ function loadDynamicFields() {
     if(nilArea) nilArea.innerHTML = ""; 
     document.getElementById('mainSaveBtn').style.display = 'none';
 
-    if(!fId) {
-        if(document.getElementById('fortnightDiv')) document.getElementById('fortnightDiv').style.display = 'none';
-        return;
-    }
+    if(!fId) return;
 
-    // 🟢 जर सर्व गावे भरून झाली असतील तर अभिनंदन मेसेज दाखवणे
     let availableVillages = Array.from(document.getElementById('selVillage').options).map(o => o.value).filter(v => v !== "" && v !== "ALL_VILLAGES");
     
     if (availableVillages.length === 0 && fId) {
@@ -183,12 +190,9 @@ function loadDynamicFields() {
     
     let freq = selectedForm ? String(selectedForm.Frequency || "Monthly").trim().toUpperCase() : "";
     if(freq === "FORTNIGHTLY" && document.getElementById('fortnightDiv')) {
-        document.getElementById('fortnightDiv').style.display = "block";
         let fn = document.getElementById('selFortnight').value;
         month = month + " (" + fn + ")"; 
-    } else if(document.getElementById('fortnightDiv')) {
-        document.getElementById('fortnightDiv').style.display = "none";
-    }
+    } 
 
     if(selectedForm && String(selectedForm.FormType).trim() === 'List' && nilArea) {
         let remainingVillages = [];
@@ -383,13 +387,11 @@ function getFieldValueByFid(containerId, fid) {
     return '""'; 
 }
 
-// 🟢 नवीन: लोकसंख्या/घर संख्या लॉक (Read-Only) करण्याची पद्धत
 function generateInputHTML(f, id, label, areaId, val="", vName="") {
     let html = "";
     let lbl = String(label).trim();
     let isAutoLockTarget = false;
     
-    // बॉक्स लोकसंख्येचा किंवा घर संख्येचा आहे का हे तपासणे
     if (["लोकसंख्या", "एकूण लोकसंख्या", "गावची लोकसंख्या"].includes(lbl) || lbl.endsWith("लोकसंख्या")) isAutoLockTarget = true;
     if (["घर संख्या", "एकूण घर संख्या", "घरांची संख्या", "एकूण घरे", "घरे"].includes(lbl) || lbl.endsWith("घर संख्या") || lbl.endsWith("घरांची संख्या") || lbl.endsWith("घरे")) isAutoLockTarget = true;
 
@@ -423,7 +425,6 @@ function generateInputHTML(f, id, label, areaId, val="", vName="") {
 
     let onEvent = `oninput="this.style.border=''; processAllLogic('${areaId}')" onchange="this.style.border=''; processAllLogic('${areaId}')"`;
 
-    // 🟢 ReadOnly (Lock) आणि रंग सेट करणे
     let finalReadOnly = "";
     let finalStyle = "";
     let finalPlaceholder = "";
@@ -434,7 +435,7 @@ function generateInputHTML(f, id, label, areaId, val="", vName="") {
         finalPlaceholder = 'placeholder="Auto"';
     } else if (isAutoLockTarget) {
         finalReadOnly = "readonly";
-        finalStyle = "background:#e8f5e9; font-weight:bold; color:#155724; cursor:not-allowed;"; // लॉक केलेला हिरवट रंग
+        finalStyle = "background:#e8f5e9; font-weight:bold; color:#155724; cursor:not-allowed;"; 
         finalPlaceholder = 'placeholder="Auto"';
     }
 
@@ -717,6 +718,7 @@ async function saveDataToServer() {
         const f = masterData.forms.find(x => x.FormID === fId);
         if(f) { formsToProcess.push(f); prefixMap[f.FormID] = isBulk ? f.FormID : "single"; }
         
+        // 🟢 पधंरवडा सेव्ह करण्यासाठी
         if(f && String(f.Frequency).trim().toUpperCase() === "FORTNIGHTLY") {
             let fn = document.getElementById('selFortnight').value;
             month = month + " (" + fn + ")";
@@ -762,6 +764,14 @@ async function saveDataToServer() {
 
         formsToProcess.forEach(f => {
             let formPrefix = prefixMap[f.FormID];
+            
+            // 🟢 पधंरवडा सेव्ह करण्यासाठी (ALL_STATS मधून फॉर्म्स आल्यावर)
+            let finalSaveMonth = month;
+            if (fId === "ALL_STATS" && String(f.Frequency).trim().toUpperCase() === "FORTNIGHTLY") {
+                 let fn = document.getElementById('selFortnight').value;
+                 finalSaveMonth = document.getElementById('selMonth').value + " (" + fn + ")";
+            }
+
             availableVillages.forEach(village => {
                 if (String(f.FormType).trim() === 'List') {
                     let tbody = document.getElementById(`list_tbody_${f.FormID}`);
@@ -773,7 +783,7 @@ async function saveDataToServer() {
                             let isEmpty = true;
                             for(let key in formData) { if(formData[key] !== undefined && String(formData[key]).trim() !== "") { isEmpty = false; break; } }
                             if(!isEmpty) {
-                                formData["महिना"] = month; formData["वर्ष"] = year;
+                                formData["महिना"] = finalSaveMonth; formData["वर्ष"] = year;
                                 const entry = { entryID: Date.now() + Math.random(), mobileNo: String(user.mobile).trim(), subCenter: String(user.subcenter).trim(), village: String(village).trim(), formID: f.FormID, formData: formData };
                                 dataToSave.push(entry); hasNewData = true;
                             }
@@ -787,7 +797,7 @@ async function saveDataToServer() {
                     if (!containerEl) return;
                     processAllLogic(containerId);
                     let formData = extractFormData(f, prefix);
-                    formData["महिना"] = month; formData["वर्ष"] = year;
+                    formData["महिना"] = finalSaveMonth; formData["वर्ष"] = year;
                     const entry = { entryID: Date.now() + Math.random(), mobileNo: String(user.mobile).trim(), subCenter: String(user.subcenter).trim(), village: String(village).trim(), formID: f.FormID, formData: formData };
                     dataToSave.push(entry); hasNewData = true;
                 }
