@@ -419,3 +419,144 @@ async function saveFullForm() {
         document.getElementById('mainActionBtn').disabled = false;
     }
 }
+// 🟢 JS/ADMIN.JS - कारणे दाखवा नोटीस (Show Cause Notice) जनरेटर
+
+function generateShowCauseNotices() {
+    const selMonth = prompt("कोणत्या महिन्यासाठी नोटीस काढायची आहे? (उदा. एप्रिल)", "एप्रिल");
+    const selYear = prompt("वर्ष कोणते? (उदा. 2026)", "2026");
+
+    if(!selMonth || !selYear) return;
+
+    let empPendingList = {};
+
+    masterData.forms.forEach(f => {
+        if(isFormInactive(f)) return;
+        let allowedRoles = f.AllowedRoles ? f.AllowedRoles.split(',').map(r=>String(r).trim().toUpperCase()) : ["ALL"];
+        let isAllForm = allowedRoles.includes("ALL");
+
+        masterData.users.forEach(u => {
+            if(u.role === "Admin" || u.role === "VIEWER" || u.role === "MANAGER") return;
+
+            if (isAllForm || allowedRoles.includes(u.role)) {
+                let userVillages = masterData.villages.filter(v => String(v.SubCenterID).trim().toLowerCase() === String(u.subcenter).trim().toLowerCase());
+                let pendingVillages = [];
+
+                userVillages.forEach(v => {
+                    let isFilled = masterData.filledStats.some(h => 
+                        h.formID === f.FormID && String(h.village).trim() === String(v.VillageName).trim() && 
+                        String(h.month).trim().startsWith(selMonth) && String(h.year).trim() === selYear
+                    );
+                    if (!isFilled) { pendingVillages.push(v.VillageName); }
+                });
+
+                if(pendingVillages.length > 0) {
+                    let mob = String(u.mobile).trim();
+                    if(!empPendingList[mob]) {
+                        empPendingList[mob] = { name: u.name, sc: u.subcenter, role: u.role, pendingForms: [] };
+                    }
+                    empPendingList[mob].pendingForms.push(`<b>${f.FormName}</b> (गावे: ${pendingVillages.join(", ")})`);
+                }
+            }
+        });
+    });
+
+    let keys = Object.keys(empPendingList);
+    if(keys.length === 0) {
+        alert("🎉 उत्कृष्ट! सर्व कर्मचाऱ्यांचे अहवाल प्राप्त आहेत. कोणतीही नोटीस काढण्याची आवश्यकता नाही.");
+        return;
+    }
+
+    let today = new Date();
+    let formattedDate = today.getDate() + "/" + (today.getMonth()+1) + "/" + today.getFullYear();
+    let printHtml = "";
+
+    keys.forEach((mob, index) => {
+        let emp = empPendingList[mob];
+        let pbClass = index > 0 ? 'page-break-before: always;' : '';
+
+        printHtml += `<div style="${pbClass} padding: 30px; font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #000; font-size: 16px;">`;
+        
+        printHtml += `<div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">`;
+        printHtml += `<h2 style="margin: 0; font-size: 24px; color: #000;">महाराष्ट्र शासन</h2>`;
+        printHtml += `<h3 style="margin: 5px 0; font-size: 20px; color: #000;">प्राथमिक आरोग्य केंद्र भादा, ता. औसा, जि. लातूर</h3>`;
+        printHtml += `</div>`;
+
+        printHtml += `<div style="display: flex; justify-content: space-between; margin-bottom: 30px; font-weight: bold;">`;
+        printHtml += `<span>जावक क्र.: प्राआकें/भादा/आस्था/नोटीस/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/२०२६</span>`;
+        printHtml += `<span>दिनांक: ${formattedDate}</span>`;
+        printHtml += `</div>`;
+
+        printHtml += `<div style="margin-bottom: 30px; font-size: 18px;">`;
+        printHtml += `<b>प्रति,</b><br>`;
+        printHtml += `<b>श्री / श्रीमती ${emp.name}</b><br>`;
+        printHtml += `पद: ${emp.role} (उपकेंद्र: ${emp.sc})<br>`;
+        printHtml += `प्राथमिक आरोग्य केंद्र भादा.`;
+        printHtml += `</div>`;
+
+        printHtml += `<div style="margin-bottom: 25px; padding-left: 40px;">`;
+        printHtml += `<b>विषय:</b> <u>मासिक व पंधरवाडी अहवाल विहित वेळेत सादर न केल्याबाबत - <b>कारणे दाखवा नोटीस.</b></u><br><br>`;
+        printHtml += `<b>संदर्भ:</b> १. या कार्यालयाचे वेळोवेळचे लेखी व तोंडी आदेश.<br>`;
+        printHtml += `</div>`;
+
+        printHtml += `<p style="text-indent: 40px; text-align: justify; margin-bottom: 15px;">`;
+        printHtml += `उपरोक्त संदर्भीय विषयास अनुसरून आपणास या नोटीसीद्वारे कळविण्यात येते की, आपण आपल्या उपकेंद्राच्या कार्यक्षेत्रातील <b>${selMonth} ${selYear}</b> या महिन्याचे खालील नमूद केलेले अत्यंत महत्त्वाचे शासकीय अहवाल आजतागायत ऑनलाईन प्रणालीमध्ये सादर केलेले नाहीत.`;
+        printHtml += `</p>`;
+
+        printHtml += `<ul style="margin-left: 20px; margin-bottom: 20px; padding: 15px; background: #fdfdfd; border: 1px solid #ccc; border-radius: 5px;">`;
+        emp.pendingForms.forEach(pf => { printHtml += `<li style="margin-bottom: 8px;">${pf}</li>`; });
+        printHtml += `</ul>`;
+
+        printHtml += `<p style="text-indent: 40px; text-align: justify; margin-bottom: 15px;">`;
+        printHtml += `शासकीय व सार्वजनिक आरोग्याच्या कामात हलगर्जीपणा करणे, वरिष्ठांच्या आदेशाचे वारंवार उल्लंघन करणे ही बाब <b>महाराष्ट्र नागरी सेवा (वर्तणूक) नियम १९७९</b> मधील तरतुदींचा भंग करणारी आहे. सदर अहवाल अप्राप्त असल्यामुळे तालुकास्तरावर माहिती पाठविण्यास विलंब होत आहे व त्यामुळे कार्यालयाच्या कामकाजात अडथळा निर्माण होत आहे.`;
+        printHtml += `</p>`;
+
+        printHtml += `<p style="text-indent: 40px; text-align: justify; margin-bottom: 50px;">`;
+        printHtml += `तरी, सदर अहवाल प्रलंबित ठेवल्याबाबतचा आपला लेखी खुलासा ही नोटीस प्राप्त झाल्यापासून <b>४८ तासांच्या आत</b> या कार्यालयास सादर करावा व प्रलंबित अहवाल तत्काळ ऑनलाईन भरावेत. विहित मुदतीत समाधानकारक खुलासा न आल्यास, आपल्यावर शिस्तभंगाची व प्रशासकीय कारवाई का करण्यात येऊ नये? याचा प्रस्ताव वरिष्ठांकडे (तालुका आरोग्य अधिकारी, औसा) पाठविण्यात येईल, याची गांभीर्याने नोंद घ्यावी.`;
+        printHtml += `</p>`;
+
+        printHtml += `<div style="text-align: right; margin-top: 50px; font-size: 18px; font-weight: bold;">`;
+        printHtml += `वैद्यकीय अधिकारी<br>`;
+        printHtml += `प्राथमिक आरोग्य केंद्र भादा<br>`;
+        printHtml += `ता. औसा, जि. लातूर`;
+        printHtml += `</div>`;
+
+        printHtml += `</div>`;
+    });
+
+    let oldFrame = document.getElementById('pdfNoticeFrame'); 
+    if (oldFrame) { oldFrame.remove(); }
+    
+    const iframe = document.createElement('iframe'); 
+    iframe.id = 'pdfNoticeFrame'; 
+    iframe.style.position = 'fixed'; 
+    iframe.style.right = '0'; 
+    iframe.style.bottom = '0'; 
+    iframe.style.width = '0px'; 
+    iframe.style.height = '0px'; 
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe); 
+    
+    let doc = iframe.contentWindow.document; 
+    doc.open();
+    doc.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>कारणे_दाखवा_नोटीस_${selMonth}</title>
+            <style>
+                @page { size: A4 portrait; margin: 15mm; }
+                body { margin: 0; padding: 0; }
+            </style>
+        </head>
+        <body>${printHtml}</body>
+        </html>
+    `);
+    doc.close(); 
+    
+    setTimeout(() => { 
+        iframe.contentWindow.focus(); 
+        iframe.contentWindow.print(); 
+    }, 1000);
+}
+
