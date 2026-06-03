@@ -199,7 +199,11 @@
             </div>
 
             <div id="adminSection" class="hidden">
-                <button class="btn-admin" onclick="openNewFormBuilder()">➕ नवीन फॉर्म तयार करा</button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn-admin" onclick="openNewFormBuilder()" style="flex: 1;">➕ नवीन फॉर्म तयार करा</button>
+                    <button class="btn-admin" onclick="generateShowCauseNotices()" style="background:#c0392b; flex: 1;">⚠️ कारणे दाखवा नोटीस (Pending Reports)</button>
+                </div>
+                
                 <div id="existingFormsArea" style="margin-top:20px;">
                     <h4>अस्तित्वात असलेले फॉर्म (Edit करा)</h4>
                     <div id="formsEditList"></div>
@@ -258,11 +262,11 @@
         </div>
     </div>
 
-    <script src="js/config.js?v=55"></script>
-    <script src="js/entry.js?v=55"></script>
-    <script src="js/edit.js?v=55"></script>
-    <script src="js/report.js?v=55"></script>
-    <script src="js/admin.js?v=55"></script>
+    <script src="js/config.js?v=57"></script>
+    <script src="js/entry.js?v=57"></script>
+    <script src="js/edit.js?v=57"></script>
+    <script src="js/report.js?v=57"></script>
+    <script src="js/admin.js?v=57"></script>
     
     <script>
       window.addEventListener('load', () => {
